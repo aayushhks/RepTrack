@@ -9,4 +9,35 @@
     <string name="workouts_placeholder">Your gym and home routines will show up here.</string>
     <string name="exercises_placeholder">Browse and search the exercise catalog here.</string>
     <string name="progress_placeholder">Your weight trend, workouts and runs will show up here.</string>
+
+    <!-- Goal setup -->
+    <string name="setup_title">Set up your plan</string>
+    <string name="setup_subtitle">Tell us a little about you and we will suggest a plan to start with.</string>
+    <string name="setup_height">Height</string>
+    <string name="setup_weight">Weight</string>
+    <string name="setup_goal_weight">Goal weight</string>
+    <string name="unit_cm">cm</string>
+    <string name="unit_kg">kg</string>
+    <string name="setup_goal_label">Your goal</string>
+    <string name="setup_place_label">Where do you train?</string>
+    <string name="goal_lose_weight">Lose weight</string>
+    <string name="goal_build_muscle">Build muscle</string>
+    <string name="goal_stay_fit">Stay fit</string>
+    <string name="place_gym">Gym</string>
+    <string name="place_home">Home</string>
+    <string name="setup_plan_label">Suggested plan</string>
+    <string name="setup_plan_reason">Based on your goal and where you train. You can change it later.</string>
+    <string name="setup_private_note">You can edit your stats any time.</string>
+    <string name="setup_start">Start my plan</string>
+    <string name="setup_skip">Skip for now</string>
+    <string name="error_not_number">Enter a number</string>
+    <string name="error_height_range">Enter a height between 100 and 250 cm</string>
+    <string name="error_weight_range">Enter a weight between 30 and 300 kg</string>
+
+    <!-- Starter plans. plan_summary example: "Full body, 3 days a week" -->
+    <string name="plan_summary">%1$s, %2$d days a week</string>
+    <string name="plan_full_body">Full body</string>
+    <string name="plan_upper_lower">Upper and lower split</string>
+    <string name="plan_bodyweight_full_body">Bodyweight full body</string>
+    <string name="plan_bodyweight_strength">Bodyweight strength</string>
 </resources>
