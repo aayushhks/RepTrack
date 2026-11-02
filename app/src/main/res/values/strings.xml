@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RepTrack</string>
+
+    <string name="tab_workouts">Workouts</string>
+    <string name="tab_exercises">Exercises</string>
+    <string name="tab_progress">Progress</string>
+
+    <string name="workouts_placeholder">Your gym and home routines will show up here.</string>
+    <string name="exercises_placeholder">Browse and search the exercise catalog here.</string>
+    <string name="progress_placeholder">Your weight trend, workouts and runs will show up here.</string>
+</resources>

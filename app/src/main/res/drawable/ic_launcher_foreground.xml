@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RepTrack launcher foreground: a simple dumbbell drawn for this app. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M31,45 h2 a2,2 0 0 1 2,2 v14 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-14 a2,2 0 0 1 2,-2 z M38.5,40 h3.0 a2.5,2.5 0 0 1 2.5,2.5 v23.0 a2.5,2.5 0 0 1 -2.5,2.5 h-3.0 a2.5,2.5 0 0 1 -2.5,-2.5 v-23.0 a2.5,2.5 0 0 1 2.5,-2.5 z M66.5,40 h3.0 a2.5,2.5 0 0 1 2.5,2.5 v23.0 a2.5,2.5 0 0 1 -2.5,2.5 h-3.0 a2.5,2.5 0 0 1 -2.5,-2.5 v-23.0 a2.5,2.5 0 0 1 2.5,-2.5 z M75,45 h2 a2,2 0 0 1 2,2 v14 a2,2 0 0 1 -2,2 h-2 a2,2 0 0 1 -2,-2 v-14 a2,2 0 0 1 2,-2 z M44,52 h20 v4 h-20 z M35,52 h1 v4 h-1 z M72,52 h1 v4 h-1 z" />
+</vector>
