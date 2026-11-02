@@ -3,6 +3,7 @@
 
     <!-- allowBackup is off so workout data and run routes are not copied to cloud backups. -->
     <application
+        android:name=".RepTrackApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"

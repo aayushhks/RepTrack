@@ -6,13 +6,18 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import edu.bu.reptrack.ui.RepTrackApp
+import edu.bu.reptrack.ui.RepTrackNavHost
+import edu.bu.reptrack.ui.navigation.Routes
+import edu.bu.reptrack.ui.navigation.TopLevelDestination
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Compose UI test: the app opens on Workouts and each tab shows its screen. */
+/**
+ * Compose UI tests for navigation. We start the nav host directly with a fixed start
+ * screen, so the result does not depend on what is saved on the test device.
+ */
 @RunWith(AndroidJUnit4::class)
 class NavigationTest {
 
@@ -22,7 +27,7 @@ class NavigationTest {
     @Test
     fun opensOnWorkouts_andTabsSwitchScreens() {
         composeRule.setContent {
-            RepTrackTheme { RepTrackApp() }
+            RepTrackTheme { RepTrackNavHost(startRoute = TopLevelDestination.START.route) }
         }
 
         composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
@@ -32,5 +37,15 @@ class NavigationTest {
 
         composeRule.onNodeWithText("Exercises").performClick()
         composeRule.onNodeWithTag("screen_exercises").assertIsDisplayed()
+    }
+
+    @Test
+    fun goalSetup_hidesTheBottomBar() {
+        composeRule.setContent {
+            RepTrackTheme { RepTrackNavHost(startRoute = Routes.GOAL_SETUP) }
+        }
+
+        composeRule.onNodeWithTag("screen_goal_setup").assertIsDisplayed()
+        composeRule.onNodeWithText("Progress").assertDoesNotExist()
     }
 }

@@ -11,7 +11,10 @@ Team project for CS 501 Mobile Application Development, Fall 2026, Boston Univer
 
 ## Status
 
-Project setup. The app opens with three tabs (Workouts, Exercises, Progress) that show placeholder screens. Work is tracked as GitHub issues on our project board.
+- Goal setup: on first launch the app asks for height, weight, goal weight, goal (lose weight, build muscle or stay fit) and gym or home. It suggests a starter plan and saves the profile on the phone with DataStore. The user can also skip it.
+- Three tabs (Workouts, Exercises, Progress) that still show placeholder screens.
+
+Work is tracked as GitHub issues on our project board.
 
 ## Planned features (MVP)
 
@@ -49,7 +52,12 @@ To build from the command line: `./gradlew assembleDebug`
 ## Tests
 
 - Unit tests: `./gradlew testDebugUnitTest`
+  - form checks and starter plan rules
+  - goal setup ViewModel, with a fake repository
+  - DataStore profile repository, using a temp file (no emulator needed)
 - Compose UI tests (needs a running emulator or a connected phone): `./gradlew connectedDebugAndroidTest`
+  - tab navigation, and the bottom bar is hidden during goal setup
+  - goal setup: fill the form and save, out of range error, skip
 
 GitHub Actions builds the app and runs the unit tests on every push to `main` and on every pull request.
 
@@ -57,14 +65,20 @@ GitHub Actions builds the app and runs the unit tests on every push to `main` an
 
 ```
 app/src/main/java/edu/bu/reptrack/
-    MainActivity.kt       the only activity
-    ui/RepTrackApp.kt     bottom navigation bar and nav host
-    ui/navigation/        the three tab destinations
-    ui/workouts/          Workouts tab
-    ui/exercises/         Exercises tab
-    ui/progress/          Progress tab
-    ui/components/        shared composables
-    ui/theme/             colors, text styles and theme
+    MainActivity.kt          the only activity
+    RepTrackApplication.kt   creates the AppContainer once per app start
+    di/                      AppContainer, our simple manual dependency injection
+    domain/profile/          profile model, form checks and starter plan rules (plain Kotlin)
+    data/profile/            ProfileRepository and its DataStore version
+    ui/RepTrackApp.kt        picks the first screen, bottom navigation bar and nav host
+    ui/AppViewModel.kt       tells the app if goal setup is done
+    ui/navigation/           tab destinations and other routes
+    ui/setup/                goal setup screen and its ViewModel
+    ui/workouts/             Workouts tab
+    ui/exercises/            Exercises tab
+    ui/progress/             Progress tab
+    ui/components/           shared composables
+    ui/theme/                colors, text styles and theme
 ```
 
 ## How we work
@@ -78,5 +92,6 @@ No API keys are needed yet. When we add Firebase, each developer will need their
 ## Outside resources and licenses
 
 - Tab icons: Material Design icons by Google, Apache License 2.0
-- Jetpack libraries (Compose, Navigation, Lifecycle, Activity): Apache License 2.0
+- Jetpack libraries (Compose, Navigation, Lifecycle, Activity, DataStore): Apache License 2.0
+- kotlinx.coroutines test library (tests only): Apache License 2.0
 - The launcher icon was drawn for this project.
