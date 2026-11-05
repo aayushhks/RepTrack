@@ -96,6 +96,7 @@ No API keys are needed yet. When we add Firebase, each developer will need their
 ## Outside resources and licenses
 
 - Tab icons: Material Design icons by Google, Apache License 2.0
+- Font: Archivo by The Archivo Project Authors, SIL Open Font License 1.1 (see `licenses/archivo-OFL.txt`). We bundle static weights cut from the variable font.
 - Jetpack libraries (Compose, Navigation, Lifecycle, Activity, DataStore): Apache License 2.0
 - kotlinx.coroutines test library (tests only): Apache License 2.0
 - The launcher icon was drawn for this project.

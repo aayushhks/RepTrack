@@ -35,6 +35,7 @@
 
     <!-- Starter plans. plan_summary example: "Full body, 3 days a week" -->
     <string name="plan_summary">%1$s, %2$d days a week</string>
+    <string name="plan_days">%1$d days a week</string>
     <string name="plan_full_body">Full body</string>
     <string name="plan_upper_lower">Upper and lower split</string>
     <string name="plan_bodyweight_full_body">Bodyweight full body</string>
