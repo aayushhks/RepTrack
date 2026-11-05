@@ -49,9 +49,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.profile.FieldError
 import edu.bu.reptrack.domain.profile.FitnessGoal
-import edu.bu.reptrack.domain.profile.PlanType
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
+import edu.bu.reptrack.ui.components.labelRes
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 
 /** Connects the setup screen to its ViewModel and calls [onFinished] once setup is saved or skipped. */
@@ -287,27 +287,6 @@ private fun PlanCard(plan: StarterPlan, modifier: Modifier = Modifier) {
             )
         }
     }
-}
-
-@StringRes
-private fun FitnessGoal.labelRes(): Int = when (this) {
-    FitnessGoal.LOSE_WEIGHT -> R.string.goal_lose_weight
-    FitnessGoal.BUILD_MUSCLE -> R.string.goal_build_muscle
-    FitnessGoal.STAY_FIT -> R.string.goal_stay_fit
-}
-
-@StringRes
-private fun TrainingPlace.labelRes(): Int = when (this) {
-    TrainingPlace.GYM -> R.string.place_gym
-    TrainingPlace.HOME -> R.string.place_home
-}
-
-@StringRes
-private fun PlanType.labelRes(): Int = when (this) {
-    PlanType.FULL_BODY -> R.string.plan_full_body
-    PlanType.UPPER_LOWER -> R.string.plan_upper_lower
-    PlanType.BODYWEIGHT_FULL_BODY -> R.string.plan_bodyweight_full_body
-    PlanType.BODYWEIGHT_STRENGTH -> R.string.plan_bodyweight_strength
 }
 
 @Preview(showBackground = true, heightDp = 900)

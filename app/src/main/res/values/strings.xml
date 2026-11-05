@@ -6,7 +6,6 @@
     <string name="tab_exercises">Exercises</string>
     <string name="tab_progress">Progress</string>
 
-    <string name="workouts_placeholder">Your gym and home routines will show up here.</string>
     <string name="exercises_placeholder">Browse and search the exercise catalog here.</string>
     <string name="progress_placeholder">Your weight trend, workouts and runs will show up here.</string>
 
@@ -40,4 +39,24 @@
     <string name="plan_upper_lower">Upper and lower split</string>
     <string name="plan_bodyweight_full_body">Bodyweight full body</string>
     <string name="plan_bodyweight_strength">Bodyweight strength</string>
+
+    <!-- Workouts tab -->
+    <string name="workouts_plan_label">Your plan</string>
+    <string name="workouts_goal">Goal: %1$s</string>
+    <string name="workouts_weight_now_goal">Now %1$s kg, goal %2$s kg</string>
+    <string name="workouts_weight_to_lose">%1$s kg to lose</string>
+    <string name="workouts_weight_to_gain">%1$s kg to gain</string>
+    <string name="workouts_weight_at_goal">You are at your goal weight</string>
+    <string name="workouts_setup_title">Get a plan made for you</string>
+    <string name="workouts_setup_message">Add your height, weight and goal, and we will suggest a plan.</string>
+    <string name="workouts_setup_button">Set up your plan</string>
+    <string name="workouts_place_label">Training at</string>
+    <string name="workouts_routines_label">Routines</string>
+    <string name="workouts_exercise_count">%1$d exercises</string>
+    <string name="workouts_start">Start</string>
+    <string name="workouts_start_routine">Start %1$s</string>
+
+    <!-- Workout session -->
+    <string name="session_fallback_title">Workout</string>
+    <string name="session_placeholder">Logging sets for this workout is coming next.</string>
 </resources>
