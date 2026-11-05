@@ -61,7 +61,8 @@ class WorkoutsScreenTest {
     fun withProfile_showsPlanAndWeightGap() {
         show(stateFor(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)))
 
-        composeRule.onNodeWithTag("plan_summary").assertTextEquals("Upper and lower split, 4 days a week")
+        composeRule.onNodeWithTag("plan_name").assertTextEquals("Upper and lower split")
+        composeRule.onNodeWithText("4 days a week").assertIsDisplayed()
         composeRule.onNodeWithText("Goal: Build muscle").assertIsDisplayed()
         composeRule.onNodeWithTag("weight_gap").assertTextEquals("6 kg to lose")
     }

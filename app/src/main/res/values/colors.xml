@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0B6B78</color>
-    <color name="app_background">#F3F6F7</color>
+    <!-- Ink navy behind the launcher dumbbell. -->
+    <color name="ic_launcher_background">#172235</color>
+    <!-- Window background before Compose draws. Matches Chalk in ui/theme/Color.kt. -->
+    <color name="app_background">#F6F6F4</color>
 </resources>

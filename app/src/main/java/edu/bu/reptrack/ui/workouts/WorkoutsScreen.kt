@@ -1,25 +1,32 @@
 package edu.bu.reptrack.ui.workouts
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,7 +37,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -123,29 +129,42 @@ fun WorkoutsScreen(
     }
 }
 
+/** The one bold element on the tab: a navy card with the plan name in big expanded type. */
 @Composable
 private fun PlanCard(plan: StarterPlan, profile: UserProfile, modifier: Modifier = Modifier) {
-    ElevatedCard(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+    HeroCard(modifier = modifier) {
+        val onHero = MaterialTheme.colorScheme.onPrimary
+        Text(
+            text = stringResource(R.string.workouts_plan_label),
+            style = MaterialTheme.typography.labelLarge,
+            color = onHero.copy(alpha = 0.72f),
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(
+            text = stringResource(plan.type.labelRes()),
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .testTag("plan_name"),
+        )
+        Text(
+            text = stringResource(R.string.plan_days, plan.daysPerWeek),
+            style = MaterialTheme.typography.bodyLarge,
+            color = onHero.copy(alpha = 0.85f),
+        )
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 12.dp),
+            color = onHero.copy(alpha = 0.18f),
+        )
+        Text(
+            text = stringResource(R.string.workouts_goal, stringResource(profile.goal.labelRes())),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.workouts_plan_label),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                text = stringResource(R.string.plan_summary, stringResource(plan.type.labelRes()), plan.daysPerWeek),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.testTag("plan_summary"),
-            )
-            Text(
-                text = stringResource(R.string.workouts_goal, stringResource(profile.goal.labelRes())),
-                style = MaterialTheme.typography.bodyLarge,
-            )
             Text(
                 text = stringResource(
                     R.string.workouts_weight_now_goal,
@@ -153,14 +172,23 @@ private fun PlanCard(plan: StarterPlan, profile: UserProfile, modifier: Modifier
                     formatKg(profile.goalWeightKg),
                 ),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = onHero.copy(alpha = 0.85f),
+                modifier = Modifier.weight(1f),
             )
-            Text(
-                text = weightGapText(profile),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.testTag("weight_gap"),
-            )
+            // Olive pill: the app's single accent color, used for progress.
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+            ) {
+                Text(
+                    text = weightGapText(profile),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .testTag("weight_gap"),
+                )
+            }
         }
     }
 }
@@ -175,33 +203,55 @@ private fun weightGapText(profile: UserProfile): String =
 
 @Composable
 private fun SetUpPlanCard(onSetUpPlan: () -> Unit, modifier: Modifier = Modifier) {
-    ElevatedCard(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    HeroCard(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.workouts_setup_title),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(
+            text = stringResource(R.string.workouts_setup_message),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+            modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
+        )
+        // Flipped colors so the button stands out on the navy card.
+        Button(
+            onClick = onSetUpPlan,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.onPrimary,
+                contentColor = MaterialTheme.colorScheme.primary,
+            ),
         ) {
-            Text(
-                text = stringResource(R.string.workouts_setup_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                text = stringResource(R.string.workouts_setup_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(onClick = onSetUpPlan) {
-                Text(stringResource(R.string.workouts_setup_button))
-            }
+            Text(stringResource(R.string.workouts_setup_button))
         }
     }
 }
 
+/** Navy card with the largest corner radius in the app. Only used for the top card. */
+@Composable
+private fun HeroCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(24.dp), content = content)
+    }
+}
+
+/** Quiet white card with a hairline border, so the plan card above stays the focus. */
 @Composable
 private fun RoutineCard(routine: WorkoutTemplate, onStart: () -> Unit, modifier: Modifier = Modifier) {
     val startLabel = stringResource(R.string.workouts_start_routine, routine.name)
-    OutlinedCard(modifier = modifier.fillMaxWidth()) {
+    OutlinedCard(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -209,21 +259,22 @@ private fun RoutineCard(routine: WorkoutTemplate, onStart: () -> Unit, modifier:
             Text(
                 text = routine.name,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
             )
             Text(
-                text = routine.exercises.joinToString(separator = " · "),
+                text = routine.exercises.joinToString(separator = ", "),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = stringResource(R.string.workouts_exercise_count, routine.exercises.size),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 FilledTonalButton(
@@ -246,7 +297,9 @@ private fun SectionLabel(@StringRes text: Int) {
         text = stringResource(text),
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.semantics { heading() },
+        modifier = Modifier
+            .padding(top = 8.dp)
+            .semantics { heading() },
     )
 }
 
