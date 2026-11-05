@@ -4,7 +4,10 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import edu.bu.reptrack.R
 
-/** The three tabs in the bottom navigation bar. */
+/**
+ * The three tabs in the bottom navigation bar. [route] is where the tab goes.
+ * For Workouts it is a nested graph that holds Workouts home and the workout session.
+ */
 enum class TopLevelDestination(
     val route: String,
     @param:StringRes val labelRes: Int,

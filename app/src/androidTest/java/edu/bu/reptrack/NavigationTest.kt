@@ -1,10 +1,17 @@
 package edu.bu.reptrack
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.bu.reptrack.ui.RepTrackNavHost
 import edu.bu.reptrack.ui.navigation.Routes
@@ -47,5 +54,25 @@ class NavigationTest {
 
         composeRule.onNodeWithTag("screen_goal_setup").assertIsDisplayed()
         composeRule.onNodeWithText("Progress").assertDoesNotExist()
+    }
+
+    @Test
+    fun startingAWorkout_opensSession_insideTheWorkoutsTab() {
+        composeRule.setContent {
+            RepTrackTheme { RepTrackNavHost(startRoute = TopLevelDestination.START.route) }
+        }
+        // Wait until the profile has loaded and the routine cards are on screen.
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Start").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeRule.onAllNodesWithText("Start").onFirst().performScrollTo().performClick()
+
+        composeRule.onNodeWithTag("screen_workout_session").assertIsDisplayed()
+        // The session is part of the Workouts tab, so that tab stays selected.
+        composeRule.onNode(hasText("Workouts") and isSelectable()).assertIsSelected()
+
+        Espresso.pressBack()
+        composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
     }
 }

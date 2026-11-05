@@ -12,7 +12,8 @@ Team project for CS 501 Mobile Application Development, Fall 2026, Boston Univer
 ## Status
 
 - Goal setup: on first launch the app asks for height, weight, goal weight, goal (lose weight, build muscle or stay fit) and gym or home. It suggests a starter plan and saves the profile on the phone with DataStore. The user can also skip it.
-- Three tabs (Workouts, Exercises, Progress) that still show placeholder screens.
+- Workouts tab: shows the suggested plan, current and goal weight, a gym or home switch, and the routines for the plan. Starting a routine opens the workout session screen inside the Workouts tab (set logging comes next).
+- Exercises and Progress tabs still show placeholder screens.
 
 Work is tracked as GitHub issues on our project board.
 
@@ -52,11 +53,12 @@ To build from the command line: `./gradlew assembleDebug`
 ## Tests
 
 - Unit tests: `./gradlew testDebugUnitTest`
-  - form checks and starter plan rules
-  - goal setup ViewModel, with a fake repository
+  - form checks, starter plan rules, starter routines and weight helpers
+  - goal setup and Workouts ViewModels, with a fake repository
   - DataStore profile repository, using a temp file (no emulator needed)
 - Compose UI tests (needs a running emulator or a connected phone): `./gradlew connectedDebugAndroidTest`
-  - tab navigation, and the bottom bar is hidden during goal setup
+  - tab navigation, the bottom bar is hidden during goal setup, and starting a workout opens the session inside the Workouts tab
+  - Workouts tab: plan and weight shown, start a routine, set up a plan, switch gym or home
   - goal setup: fill the form and save, out of range error, skip
 
 GitHub Actions builds the app and runs the unit tests on every push to `main` and on every pull request.
@@ -68,13 +70,15 @@ app/src/main/java/edu/bu/reptrack/
     MainActivity.kt          the only activity
     RepTrackApplication.kt   creates the AppContainer once per app start
     di/                      AppContainer, our simple manual dependency injection
-    domain/profile/          profile model, form checks and starter plan rules (plain Kotlin)
+    domain/profile/          profile model, form checks, starter plan rules, weight helpers (plain Kotlin)
+    domain/workout/          built-in starter routines for each plan
     data/profile/            ProfileRepository and its DataStore version
     ui/RepTrackApp.kt        picks the first screen, bottom navigation bar and nav host
     ui/AppViewModel.kt       tells the app if goal setup is done
-    ui/navigation/           tab destinations and other routes
+    ui/navigation/           tab destinations and other routes (Workouts is a nested graph)
     ui/setup/                goal setup screen and its ViewModel
-    ui/workouts/             Workouts tab
+    ui/workouts/             Workouts tab and its ViewModel
+    ui/session/              workout session screen
     ui/exercises/            Exercises tab
     ui/progress/             Progress tab
     ui/components/           shared composables

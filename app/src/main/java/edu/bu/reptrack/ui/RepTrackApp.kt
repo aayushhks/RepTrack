@@ -19,16 +19,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import edu.bu.reptrack.ui.exercises.ExercisesScreen
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
 import edu.bu.reptrack.ui.progress.ProgressScreen
+import edu.bu.reptrack.ui.session.WorkoutSessionScreen
 import edu.bu.reptrack.ui.setup.GoalSetupRoute
-import edu.bu.reptrack.ui.workouts.WorkoutsScreen
+import edu.bu.reptrack.ui.workouts.WorkoutsRoute
 
 /** App root: waits for the saved profile flag, then opens on goal setup or on the tabs. */
 @Composable
@@ -104,14 +108,34 @@ fun RepTrackNavHost(startRoute: String, modifier: Modifier = Modifier) {
             composable(Routes.GOAL_SETUP) {
                 GoalSetupRoute(
                     onFinished = {
-                        navController.navigate(TopLevelDestination.START.route) {
-                            // Setup is a one-time screen, so Back should not return to it.
-                            popUpTo(Routes.GOAL_SETUP) { inclusive = true }
+                        if (navController.previousBackStackEntry != null) {
+                            // Opened from the Workouts tab, so just go back to it.
+                            navController.popBackStack()
+                        } else {
+                            // First launch: open the tabs, and remove setup so Back does not return to it.
+                            navController.navigate(TopLevelDestination.START.route) {
+                                popUpTo(Routes.GOAL_SETUP) { inclusive = true }
+                            }
                         }
                     },
                 )
             }
-            composable(TopLevelDestination.WORKOUTS.route) { WorkoutsScreen() }
+
+            // The Workouts tab is a nested graph: Workouts home, then a workout session on top.
+            navigation(startDestination = Routes.WORKOUTS_HOME, route = TopLevelDestination.WORKOUTS.route) {
+                composable(Routes.WORKOUTS_HOME) {
+                    WorkoutsRoute(
+                        onStartWorkout = { routineId -> navController.navigate(Routes.workoutSession(routineId)) },
+                        onSetUpPlan = { navController.navigate(Routes.GOAL_SETUP) },
+                    )
+                }
+                composable(
+                    route = Routes.WORKOUT_SESSION,
+                    arguments = listOf(navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType }),
+                ) { entry ->
+                    WorkoutSessionScreen(routineId = entry.arguments?.getString(Routes.ARG_ROUTINE_ID).orEmpty())
+                }
+            }
             composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
             composable(TopLevelDestination.PROGRESS.route) { ProgressScreen() }
         }
