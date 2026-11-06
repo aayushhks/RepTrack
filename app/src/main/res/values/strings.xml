@@ -60,4 +60,28 @@
     <!-- Workout session -->
     <string name="session_fallback_title">Workout</string>
     <string name="session_placeholder">Logging sets for this workout is coming next.</string>
+
+    <!-- Sign in -->
+    <string name="sign_in_title">Sign in</string>
+    <string name="sign_in_subtitle">Welcome back. Sign in with your email and password.</string>
+    <string name="sign_in_create_title">Create your account</string>
+    <string name="sign_in_create_subtitle">Use your email and choose a password with at least 6 characters.</string>
+    <string name="sign_in_email">Email</string>
+    <string name="sign_in_password">Password</string>
+    <string name="sign_in_button">Sign in</string>
+    <string name="sign_in_create_button">Create account</string>
+    <string name="sign_in_switch_to_create">New here? Create an account</string>
+    <string name="sign_in_switch_to_sign_in">Already have an account? Sign in</string>
+    <string name="sign_in_skip">Use without an account</string>
+    <string name="sign_in_show_password">Show password</string>
+    <string name="sign_in_hide_password">Hide password</string>
+    <string name="sign_in_working">Please wait</string>
+    <string name="error_email_invalid">Enter a valid email address</string>
+    <string name="error_password_short">Use at least 6 characters</string>
+    <string name="auth_error_invalid_email">That email address does not look right.</string>
+    <string name="auth_error_wrong_credentials">Wrong email or password.</string>
+    <string name="auth_error_email_in_use">An account with this email already exists. Try signing in.</string>
+    <string name="auth_error_weak_password">Choose a stronger password with at least 6 characters.</string>
+    <string name="auth_error_network">No internet connection. Check your network and try again.</string>
+    <string name="auth_error_unknown">Something went wrong. Please try again.</string>
 </resources>

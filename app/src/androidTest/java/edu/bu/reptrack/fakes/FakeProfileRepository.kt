@@ -9,12 +9,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeProfileRepository : ProfileRepository {
     private val profileFlow = MutableStateFlow<UserProfile?>(null)
     private val setupDoneFlow = MutableStateFlow(false)
+    private val skippedSignInFlow = MutableStateFlow(false)
 
     override val profile: Flow<UserProfile?> = profileFlow
     override val isSetupDone: Flow<Boolean> = setupDoneFlow
+    override val skippedSignIn: Flow<Boolean> = skippedSignInFlow
 
     val savedProfile: UserProfile? get() = profileFlow.value
     val setupDone: Boolean get() = setupDoneFlow.value
+    val signInSkipped: Boolean get() = skippedSignInFlow.value
 
     override suspend fun saveProfile(profile: UserProfile) {
         profileFlow.value = profile
@@ -23,5 +26,9 @@ class FakeProfileRepository : ProfileRepository {
 
     override suspend fun skipSetup() {
         setupDoneFlow.value = true
+    }
+
+    override suspend fun skipSignIn() {
+        skippedSignInFlow.value = true
     }
 }

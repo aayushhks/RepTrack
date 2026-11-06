@@ -26,6 +26,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import edu.bu.reptrack.domain.auth.FirstScreen
+import edu.bu.reptrack.ui.auth.SignInRoute
 import edu.bu.reptrack.ui.exercises.ExercisesScreen
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
@@ -34,36 +36,52 @@ import edu.bu.reptrack.ui.session.WorkoutSessionScreen
 import edu.bu.reptrack.ui.setup.GoalSetupRoute
 import edu.bu.reptrack.ui.workouts.WorkoutsRoute
 
-/** App root: waits for the saved profile flag, then opens on goal setup or on the tabs. */
+/** App root: waits for the saved sign-in and profile state, then opens on sign in, goal setup or the tabs. */
 @Composable
 fun RepTrackApp(
     modifier: Modifier = Modifier,
     appViewModel: AppViewModel = viewModel(factory = AppViewModel.Factory),
 ) {
+    val firstScreen by appViewModel.firstScreen.collectAsStateWithLifecycle()
     val setupDone by appViewModel.isSetupDone.collectAsStateWithLifecycle()
 
-    when (val done = setupDone) {
-        // DataStore takes a few milliseconds to read. Show the plain window background meanwhile.
+    when (val first = firstScreen) {
+        // Firebase and DataStore take a moment to answer. Show the plain window background meanwhile.
         null -> Box(modifier.fillMaxSize())
         else -> {
-            // Decide the first screen once, so finishing setup does not rebuild the nav graph.
-            val startRoute = rememberSaveable {
-                if (done) TopLevelDestination.START.route else Routes.GOAL_SETUP
-            }
-            RepTrackNavHost(startRoute = startRoute, modifier = modifier)
+            // Decide the first screen once, so signing in or finishing setup does not rebuild the nav graph.
+            val startRoute = rememberSaveable { first.route() }
+            RepTrackNavHost(
+                startRoute = startRoute,
+                modifier = modifier,
+                isSetupDone = setupDone == true,
+            )
         }
     }
 }
 
-/** Bottom navigation bar plus the nav host. The bar is hidden during goal setup. */
+private fun FirstScreen.route(): String = when (this) {
+    FirstScreen.SIGN_IN -> Routes.SIGN_IN
+    FirstScreen.GOAL_SETUP -> Routes.GOAL_SETUP
+    FirstScreen.TABS -> TopLevelDestination.START.route
+}
+
+/**
+ * Bottom navigation bar plus the nav host. The bar is hidden on sign in and goal setup.
+ * [isSetupDone] tells sign in where to go next: goal setup, or straight to the tabs.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RepTrackNavHost(startRoute: String, modifier: Modifier = Modifier) {
+fun RepTrackNavHost(
+    startRoute: String,
+    modifier: Modifier = Modifier,
+    isSetupDone: Boolean = false,
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val currentRoute = currentDestination?.route ?: startRoute
-    val showBottomBar = currentRoute != Routes.GOAL_SETUP
+    val showBottomBar = currentRoute != Routes.GOAL_SETUP && currentRoute != Routes.SIGN_IN
 
     Scaffold(
         modifier = modifier,
@@ -105,6 +123,19 @@ fun RepTrackNavHost(startRoute: String, modifier: Modifier = Modifier) {
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
+            composable(Routes.SIGN_IN) {
+                SignInRoute(
+                    onFinished = {
+                        // Signed in, created an account or skipped. Go on to goal setup (or the tabs if
+                        // setup is already done) and remove sign in so Back does not return to it.
+                        val next = if (isSetupDone) TopLevelDestination.START.route else Routes.GOAL_SETUP
+                        navController.navigate(next) {
+                            popUpTo(Routes.SIGN_IN) { inclusive = true }
+                        }
+                    },
+                )
+            }
+
             composable(Routes.GOAL_SETUP) {
                 GoalSetupRoute(
                     onFinished = {

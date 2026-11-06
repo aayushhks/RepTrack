@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Needed for Firebase sign-in now, and for the exercise catalog later. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- allowBackup is off so workout data and run routes are not copied to cloud backups. -->
     <application
         android:name=".RepTrackApplication"

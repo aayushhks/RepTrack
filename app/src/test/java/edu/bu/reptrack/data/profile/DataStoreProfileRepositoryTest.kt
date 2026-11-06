@@ -79,4 +79,21 @@ class DataStoreProfileRepositoryTest {
         assertEquals(FitnessGoal.STAY_FIT, saved?.goal)
         assertEquals(TrainingPlace.GYM, saved?.place)
     }
+
+    @Test
+    fun newInstall_hasNotSkippedSignIn() = runTest {
+        val repository = DataStoreProfileRepository(newDataStore(backgroundScope))
+
+        assertFalse(repository.skippedSignIn.first())
+    }
+
+    @Test
+    fun skipSignIn_isRemembered_withoutMarkingSetupDone() = runTest {
+        val repository = DataStoreProfileRepository(newDataStore(backgroundScope))
+
+        repository.skipSignIn()
+
+        assertTrue(repository.skippedSignIn.first())
+        assertFalse(repository.isSetupDone.first())
+    }
 }
