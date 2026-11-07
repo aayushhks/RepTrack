@@ -139,4 +139,27 @@ class GoalSetupViewModelTest {
         assertEquals("180", state.height)
         assertEquals(FitnessGoal.STAY_FIT, state.goal)
     }
+
+    @Test
+    fun savedProfile_opensTheFormFilledIn_forEditing() = runTest {
+        repository.saveProfile(UserProfile(178f, 82.5f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.HOME))
+
+        val state = newViewModel().uiState.value
+
+        assertEquals("178", state.height)
+        assertEquals("82.5", state.weight)
+        assertEquals("76", state.goalWeight)
+        assertEquals(FitnessGoal.BUILD_MUSCLE, state.goal)
+        assertEquals(TrainingPlace.HOME, state.place)
+        assertTrue(state.canSave)
+    }
+
+    @Test
+    fun valuesTypedBeforeRotation_areNotReplacedByTheSavedProfile() = runTest {
+        repository.saveProfile(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM))
+
+        val state = newViewModel(SavedStateHandle(mapOf("height" to "190"))).uiState.value
+
+        assertEquals("190", state.height)
+    }
 }
