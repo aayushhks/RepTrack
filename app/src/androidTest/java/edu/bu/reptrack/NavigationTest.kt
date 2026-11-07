@@ -73,4 +73,33 @@ class NavigationTest {
         Espresso.pressBack()
         composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
     }
+
+    @Test
+    fun backFromAnotherTab_goesToWorkoutsHome() {
+        composeRule.setContent {
+            RepTrackTheme { RepTrackNavHost(startRoute = TopLevelDestination.START.route) }
+        }
+
+        composeRule.onNodeWithText("Progress").performClick()
+        composeRule.onNodeWithTag("screen_progress").assertIsDisplayed()
+
+        Espresso.pressBack()
+        composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
+    }
+
+    @Test
+    fun backAfterSeveralTabs_stillGoesToWorkoutsHome_notThePreviousTab() {
+        composeRule.setContent {
+            RepTrackTheme { RepTrackNavHost(startRoute = TopLevelDestination.START.route) }
+        }
+
+        composeRule.onNodeWithText("Exercises").performClick()
+        composeRule.onNodeWithText("Progress").performClick()
+        composeRule.onNodeWithTag("screen_progress").assertIsDisplayed()
+
+        // Not like a browser: Back skips the Exercises tab and goes home.
+        Espresso.pressBack()
+        composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
+        composeRule.onNodeWithTag("screen_exercises").assertDoesNotExist()
+    }
 }
