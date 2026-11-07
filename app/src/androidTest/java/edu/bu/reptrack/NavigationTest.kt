@@ -1,9 +1,6 @@
 package edu.bu.reptrack
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -57,7 +54,7 @@ class NavigationTest {
     }
 
     @Test
-    fun startingAWorkout_opensSession_insideTheWorkoutsTab() {
+    fun startingAWorkout_opensFullScreenSession_andBackReturnsHome() {
         composeRule.setContent {
             RepTrackTheme { RepTrackNavHost(startRoute = TopLevelDestination.START.route) }
         }
@@ -69,9 +66,10 @@ class NavigationTest {
         composeRule.onAllNodesWithText("Start").onFirst().performScrollTo().performClick()
 
         composeRule.onNodeWithTag("screen_workout_session").assertIsDisplayed()
-        // The session is part of the Workouts tab, so that tab stays selected.
-        composeRule.onNode(hasText("Workouts") and isSelectable()).assertIsSelected()
+        // A workout takes the whole screen, so the bottom bar is hidden.
+        composeRule.onNodeWithText("Progress").assertDoesNotExist()
 
+        // No sets were logged, so Back leaves straight away without asking.
         Espresso.pressBack()
         composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
     }

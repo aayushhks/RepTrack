@@ -7,7 +7,6 @@
     <string name="tab_progress">Progress</string>
 
     <string name="exercises_placeholder">Browse and search the exercise catalog here.</string>
-    <string name="progress_placeholder">Your weight trend, workouts and runs will show up here.</string>
 
     <!-- Goal setup -->
     <string name="setup_title">Set up your plan</string>
@@ -59,7 +58,52 @@
 
     <!-- Workout session -->
     <string name="session_fallback_title">Workout</string>
-    <string name="session_placeholder">Logging sets for this workout is coming next.</string>
+    <string name="session_close">Leave workout</string>
+    <string name="session_weight">Weight</string>
+    <string name="session_reps">Reps</string>
+    <string name="session_add_set">Add set</string>
+    <string name="session_add_set_for">Add set to %1$s</string>
+    <string name="session_set_label">Set %1$d</string>
+    <!-- Example: "60 kg × 10" (weight times reps) -->
+    <string name="session_set_value">%1$s kg × %2$d</string>
+    <string name="session_set_bodyweight">%1$d reps</string>
+    <string name="session_edit">Edit</string>
+    <string name="session_edit_set">Edit set %1$d</string>
+    <!-- Example: "Squat, set 2" -->
+    <string name="session_edit_title">%1$s, set %2$d</string>
+    <string name="session_save">Save</string>
+    <string name="session_cancel">Cancel</string>
+    <string name="session_delete_set">Delete set</string>
+    <string name="session_no_sets">No sets yet. Log one to finish the workout.</string>
+    <!-- Example: "3 sets, 1160 kg total volume" -->
+    <string name="session_totals">%1$s, %2$s kg total volume</string>
+    <string name="session_finish">Finish workout</string>
+    <string name="session_leave_title">Leave this workout?</string>
+    <string name="session_leave_message">Your logged sets will be deleted. To keep them, finish the workout instead.</string>
+    <string name="session_leave_discard">Discard workout</string>
+    <string name="session_leave_keep">Keep logging</string>
+    <string name="error_reps_range">Enter reps from 1 to 100</string>
+    <string name="error_set_weight_range">Enter a weight from 0 to 500 kg, or leave it empty for bodyweight</string>
+
+    <!-- Progress tab -->
+    <string name="progress_history_title">Workout history</string>
+    <string name="progress_empty_title">No workouts yet</string>
+    <string name="progress_empty_message">Finish a workout and it shows up here with its sets and total volume.</string>
+    <string name="progress_empty_button">Start a workout</string>
+    <!-- Example: "5 exercises, 15 sets, 4250 kg volume" -->
+    <string name="history_stats">%1$s, %2$s, %3$s kg volume</string>
+    <string name="history_duration_short">Under 1 min</string>
+    <string name="history_duration_minutes">%1$d min</string>
+    <string name="history_duration_hours">%1$d h %2$d min</string>
+
+    <plurals name="set_count">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+    <plurals name="exercise_count">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
 
     <!-- Sign in -->
     <string name="sign_in_title">Sign in</string>

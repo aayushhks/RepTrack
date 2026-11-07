@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -31,8 +32,8 @@ import edu.bu.reptrack.ui.auth.SignInRoute
 import edu.bu.reptrack.ui.exercises.ExercisesScreen
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
-import edu.bu.reptrack.ui.progress.ProgressScreen
-import edu.bu.reptrack.ui.session.WorkoutSessionScreen
+import edu.bu.reptrack.ui.progress.ProgressRoute
+import edu.bu.reptrack.ui.session.WorkoutSessionRoute
 import edu.bu.reptrack.ui.setup.GoalSetupRoute
 import edu.bu.reptrack.ui.workouts.WorkoutsRoute
 
@@ -66,9 +67,26 @@ private fun FirstScreen.route(): String = when (this) {
     FirstScreen.TABS -> TopLevelDestination.START.route
 }
 
+/** Screens that take the whole screen, so the bottom bar is hidden on them. */
+private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION)
+
 /**
- * Bottom navigation bar plus the nav host. The bar is hidden on sign in and goal setup.
- * [isSetupDone] tells sign in where to go next: goal setup, or straight to the tabs.
+ * Switches tabs the way the bottom bar does: one copy of each tab, and each tab keeps its
+ * own state. Workouts is always at the bottom of the stack, so we pop up to it.
+ */
+private fun NavHostController.navigateToTab(destination: TopLevelDestination) {
+    navigate(destination.route) {
+        popUpTo(TopLevelDestination.START.route) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+/**
+ * Bottom navigation bar plus the nav host. The bar is hidden on sign in, goal setup and
+ * during a workout. [isSetupDone] tells sign in where to go next: goal setup, or the tabs.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -81,7 +99,7 @@ fun RepTrackNavHost(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val currentRoute = currentDestination?.route ?: startRoute
-    val showBottomBar = currentRoute != Routes.GOAL_SETUP && currentRoute != Routes.SIGN_IN
+    val showBottomBar = currentRoute !in fullScreenRoutes
 
     Scaffold(
         modifier = modifier,
@@ -92,18 +110,7 @@ fun RepTrackNavHost(
                         val selected = currentDestination?.hierarchy?.any { it.route == destination.route } == true
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                navController.navigate(destination.route) {
-                                    // Keep one copy of each tab and restore its state when we come back.
-                                    // Workouts is always at the bottom of the stack, even when the
-                                    // graph started on goal setup, so we pop up to it.
-                                    popUpTo(TopLevelDestination.START.route) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navController.navigateToTab(destination) },
                             icon = {
                                 // The label below already names the tab, so the icon is decorative.
                                 Icon(painterResource(destination.iconRes), contentDescription = null)
@@ -163,12 +170,22 @@ fun RepTrackNavHost(
                 composable(
                     route = Routes.WORKOUT_SESSION,
                     arguments = listOf(navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType }),
-                ) { entry ->
-                    WorkoutSessionScreen(routineId = entry.arguments?.getString(Routes.ARG_ROUTINE_ID).orEmpty())
+                ) {
+                    // The routine id reaches the ViewModel through its SavedStateHandle.
+                    WorkoutSessionRoute(
+                        onFinished = {
+                            // Close the session, then show the saved workout on the Progress tab.
+                            navController.popBackStack()
+                            navController.navigateToTab(TopLevelDestination.PROGRESS)
+                        },
+                        onLeave = { navController.popBackStack() },
+                    )
                 }
             }
             composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
-            composable(TopLevelDestination.PROGRESS.route) { ProgressScreen() }
+            composable(TopLevelDestination.PROGRESS.route) {
+                ProgressRoute(onStartWorkout = { navController.navigateToTab(TopLevelDestination.WORKOUTS) })
+            }
         }
     }
 }
