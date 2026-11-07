@@ -32,6 +32,7 @@ class DataStoreProfileRepository(
         val GOAL = stringPreferencesKey("goal")
         val PLACE = stringPreferencesKey("place")
         val SETUP_DONE = booleanPreferencesKey("setup_done")
+        val SKIPPED_SIGN_IN = booleanPreferencesKey("skipped_sign_in")
     }
 
     // A read error (for example a corrupted file) falls back to empty values instead of crashing.
@@ -40,6 +41,8 @@ class DataStoreProfileRepository(
     }
 
     override val isSetupDone: Flow<Boolean> = safeData.map { it[Keys.SETUP_DONE] ?: false }
+
+    override val skippedSignIn: Flow<Boolean> = safeData.map { it[Keys.SKIPPED_SIGN_IN] ?: false }
 
     override val profile: Flow<UserProfile?> = safeData.map { prefs ->
         val height = prefs[Keys.HEIGHT_CM] ?: return@map null
@@ -67,6 +70,10 @@ class DataStoreProfileRepository(
 
     override suspend fun skipSetup() {
         dataStore.edit { prefs -> prefs[Keys.SETUP_DONE] = true }
+    }
+
+    override suspend fun skipSignIn() {
+        dataStore.edit { prefs -> prefs[Keys.SKIPPED_SIGN_IN] = true }
     }
 
     private inline fun <reified T : Enum<T>> enumOrDefault(name: String?, default: T): T =

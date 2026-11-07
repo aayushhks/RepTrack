@@ -11,7 +11,12 @@ interface ProfileRepository {
     /** True once the user finished or skipped the setup screen. */
     val isSetupDone: Flow<Boolean>
 
+    /** True once the user chose "Use without an account" on the sign-in screen. */
+    val skippedSignIn: Flow<Boolean>
+
     suspend fun saveProfile(profile: UserProfile)
 
     suspend fun skipSetup()
+
+    suspend fun skipSignIn()
 }

@@ -2,6 +2,7 @@ package edu.bu.reptrack.ui.navigation
 
 /** Routes that are not bottom-bar tabs. */
 object Routes {
+    const val SIGN_IN = "sign_in"
     const val GOAL_SETUP = "goal_setup"
 
     // Screens inside the Workouts tab. The tab itself is a nested graph, so it keeps
