@@ -1,5 +1,10 @@
 package edu.bu.reptrack.ui
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -18,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -71,12 +77,14 @@ private fun FirstScreen.route(): String = when (this) {
 private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION)
 
 /**
- * Switches tabs the way the bottom bar does: one copy of each tab, and each tab keeps its
- * own state. Workouts is always at the bottom of the stack, so we pop up to it.
+ * Switches tabs the way the bottom bar does. Android's rule: Workouts home is always at the
+ * bottom of the stack, so Back from any other tab lands there, and Back from Workouts leaves
+ * the app. We pop up to the Workouts home *screen* (not the Workouts graph), keep one copy of
+ * each tab, and each tab keeps its own state.
  */
 private fun NavHostController.navigateToTab(destination: TopLevelDestination) {
     navigate(destination.route) {
-        popUpTo(TopLevelDestination.START.route) {
+        popUpTo(Routes.WORKOUTS_HOME) {
             saveState = true
         }
         launchSingleTop = true
@@ -129,6 +137,12 @@ fun RepTrackNavHost(
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
+            // Material "fade through" between tabs: quick fade out, then fade in. The default is a slow
+            // 700 ms crossfade that feels like a web page loading.
+            enterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
+            exitTransition = { fadeOut(tween(durationMillis = 90)) },
+            popEnterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
+            popExitTransition = { fadeOut(tween(durationMillis = 90)) },
         ) {
             composable(Routes.SIGN_IN) {
                 SignInRoute(
@@ -143,7 +157,11 @@ fun RepTrackNavHost(
                 )
             }
 
-            composable(Routes.GOAL_SETUP) {
+            composable(
+                route = Routes.GOAL_SETUP,
+                enterTransition = { slideInFromRight() },
+                popExitTransition = { slideOutToRight() },
+            ) {
                 GoalSetupRoute(
                     onFinished = {
                         if (navController.previousBackStackEntry != null) {
@@ -167,9 +185,13 @@ fun RepTrackNavHost(
                         onSetUpPlan = { navController.navigate(Routes.GOAL_SETUP) },
                     )
                 }
+                // A workout slides in from the right. With predictive back, it follows your finger
+                // when you swipe back, like other Android apps.
                 composable(
                     route = Routes.WORKOUT_SESSION,
                     arguments = listOf(navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType }),
+                    enterTransition = { slideInFromRight() },
+                    popExitTransition = { slideOutToRight() },
                 ) {
                     // The routine id reaches the ViewModel through its SavedStateHandle.
                     WorkoutSessionRoute(
@@ -189,3 +211,13 @@ fun RepTrackNavHost(
         }
     }
 }
+
+private const val SLIDE_MILLIS = 300
+
+/** Screen opened on top of a tab: slides in from the right. */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromRight() =
+    slideIntoContainer(SlideDirection.Start, tween(SLIDE_MILLIS))
+
+/** Same screen going away with Back: slides out to the right. */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToRight() =
+    slideOutOfContainer(SlideDirection.End, tween(SLIDE_MILLIS))
