@@ -38,6 +38,7 @@ import edu.bu.reptrack.ui.auth.SignInRoute
 import edu.bu.reptrack.ui.exercises.ExercisesScreen
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
+import edu.bu.reptrack.ui.profile.ProfileRoute
 import edu.bu.reptrack.ui.progress.ProgressRoute
 import edu.bu.reptrack.ui.session.WorkoutSessionRoute
 import edu.bu.reptrack.ui.setup.GoalSetupRoute
@@ -147,11 +148,16 @@ fun RepTrackNavHost(
             composable(Routes.SIGN_IN) {
                 SignInRoute(
                     onFinished = {
-                        // Signed in, created an account or skipped. Go on to goal setup (or the tabs if
-                        // setup is already done) and remove sign in so Back does not return to it.
-                        val next = if (isSetupDone) TopLevelDestination.START.route else Routes.GOAL_SETUP
-                        navController.navigate(next) {
-                            popUpTo(Routes.SIGN_IN) { inclusive = true }
+                        if (navController.previousBackStackEntry != null) {
+                            // Opened from the Profile tab, so just go back to it.
+                            navController.popBackStack()
+                        } else {
+                            // First launch or after signing out: go on to goal setup (or the tabs if setup
+                            // is already done) and remove sign in so Back does not return to it.
+                            val next = if (isSetupDone) TopLevelDestination.START.route else Routes.GOAL_SETUP
+                            navController.navigate(next) {
+                                popUpTo(Routes.SIGN_IN) { inclusive = true }
+                            }
                         }
                     },
                 )
@@ -165,7 +171,7 @@ fun RepTrackNavHost(
                 GoalSetupRoute(
                     onFinished = {
                         if (navController.previousBackStackEntry != null) {
-                            // Opened from the Workouts tab, so just go back to it.
+                            // Opened from the Workouts or Profile tab, so just go back to it.
                             navController.popBackStack()
                         } else {
                             // First launch: open the tabs, and remove setup so Back does not return to it.
@@ -207,6 +213,19 @@ fun RepTrackNavHost(
             composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
             composable(TopLevelDestination.PROGRESS.route) {
                 ProgressRoute(onStartWorkout = { navController.navigateToTab(TopLevelDestination.WORKOUTS) })
+            }
+            composable(TopLevelDestination.PROFILE.route) {
+                ProfileRoute(
+                    // Goal setup opens with the saved stats filled in, so it works as an edit screen.
+                    onEditStats = { navController.navigate(Routes.GOAL_SETUP) },
+                    onSignIn = { navController.navigate(Routes.SIGN_IN) },
+                    onSignedOut = {
+                        // Clear everything, so Back from sign in leaves the app instead of showing the tabs.
+                        navController.navigate(Routes.SIGN_IN) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    },
+                )
             }
         }
     }

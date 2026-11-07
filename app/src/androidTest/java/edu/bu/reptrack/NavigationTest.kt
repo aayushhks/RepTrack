@@ -102,4 +102,17 @@ class NavigationTest {
         composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
         composeRule.onNodeWithTag("screen_exercises").assertDoesNotExist()
     }
+
+    @Test
+    fun profileTab_opens_andBackGoesToWorkoutsHome() {
+        composeRule.setContent {
+            RepTrackTheme { RepTrackNavHost(startRoute = TopLevelDestination.START.route) }
+        }
+
+        composeRule.onNodeWithText("Profile").performClick()
+        composeRule.onNodeWithTag("screen_profile").assertIsDisplayed()
+
+        Espresso.pressBack()
+        composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
+    }
 }

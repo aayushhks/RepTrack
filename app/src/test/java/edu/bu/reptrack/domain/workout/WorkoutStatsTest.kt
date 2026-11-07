@@ -1,5 +1,6 @@
 package edu.bu.reptrack.domain.workout
 
+import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -33,5 +34,16 @@ class WorkoutStatsTest {
             listOf("Squat", "Bench press", "Curl"),
             exercisesToShow(listOf("Squat", "Bench press"), sets),
         )
+    }
+
+    @Test
+    fun weekStartsOnMondayAtMidnight() {
+        val monday = 1_794_182_400_000L // Mon Nov 9, 2026, 00:00 UTC
+        val wednesdayNoon = 1_794_398_400_000L
+        val sundayNight = 1_794_783_600_000L // Sun Nov 15, 23:00 UTC, still the same week
+
+        assertEquals(monday, startOfWeekMillis(wednesdayNoon, ZoneOffset.UTC))
+        assertEquals(monday, startOfWeekMillis(monday, ZoneOffset.UTC))
+        assertEquals(monday, startOfWeekMillis(sundayNight, ZoneOffset.UTC))
     }
 }

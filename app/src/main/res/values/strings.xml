@@ -5,6 +5,7 @@
     <string name="tab_workouts">Workouts</string>
     <string name="tab_exercises">Exercises</string>
     <string name="tab_progress">Progress</string>
+    <string name="tab_profile">Profile</string>
 
     <string name="exercises_placeholder">Browse and search the exercise catalog here.</string>
 
@@ -95,6 +96,27 @@
     <string name="history_duration_short">Under 1 min</string>
     <string name="history_duration_minutes">%1$d min</string>
     <string name="history_duration_hours">%1$d h %2$d min</string>
+
+    <!-- Profile tab -->
+    <string name="profile_no_account">Using without an account</string>
+    <string name="profile_no_account_note">Your workouts and stats stay on this phone.</string>
+    <string name="profile_signed_in_note">Signed in with email</string>
+    <string name="profile_stats_label">Your stats</string>
+    <string name="profile_no_stats">No stats yet. Add them to get a plan made for you.</string>
+    <string name="profile_goal">Goal</string>
+    <string name="profile_value_cm">%1$s cm</string>
+    <string name="profile_value_kg">%1$s kg</string>
+    <string name="profile_edit_stats">Edit stats</string>
+    <string name="profile_week_label">This week</string>
+    <string name="profile_week_workouts">Workouts</string>
+    <string name="profile_week_volume">Total volume</string>
+    <string name="profile_account_label">Account</string>
+    <string name="profile_sign_in">Sign in or create an account</string>
+    <string name="profile_sign_out">Sign out</string>
+    <string name="profile_sign_out_title">Sign out?</string>
+    <string name="profile_sign_out_message">Your workouts and stats stay on this phone. You can sign in again any time.</string>
+    <string name="profile_about_label">About</string>
+    <string name="profile_about">RepTrack is a CS 501 team project at Boston University by Aayush Kumar and Patrick Kola.</string>
 
     <plurals name="set_count">
         <item quantity="one">%d set</item>

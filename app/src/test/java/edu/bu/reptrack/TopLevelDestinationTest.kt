@@ -20,7 +20,8 @@ class TopLevelDestinationTest {
     }
 
     @Test
-    fun thereAreThreeTabs() {
-        assertEquals(3, TopLevelDestination.entries.size)
+    fun thereAreFourTabs_withProfileLast() {
+        assertEquals(4, TopLevelDestination.entries.size)
+        assertEquals(TopLevelDestination.PROFILE, TopLevelDestination.entries.last())
     }
 }
