@@ -106,9 +106,6 @@ Each user story is a GitHub issue. We make one branch per issue and merge it thr
 
 Sign-in uses Firebase Authentication, so the build needs a `google-services.json` file in the `app/` folder. It is listed in `.gitignore` and is never committed. **The build fails without it.**
 
-1. Ask Patrick for the file, or open the RepTrack project in the Firebase console, go to Project settings, then Your apps, pick the Android app `edu.bu.reptrack` and download `google-services.json`.
-2. Put it at `app/google-services.json`.
-
 GitHub Actions gets the file from a repository secret named `GOOGLE_SERVICES_JSON`, which the workflow writes to `app/google-services.json` before building.
 
 Tests never talk to real Firebase: they use `FakeAuthRepository`. Passwords are never saved: the sign-in screen keeps the password in memory only, not in saved state.
