@@ -1,5 +1,10 @@
 package edu.bu.reptrack.ui
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -18,7 +23,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -31,8 +38,9 @@ import edu.bu.reptrack.ui.auth.SignInRoute
 import edu.bu.reptrack.ui.exercises.ExercisesScreen
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
-import edu.bu.reptrack.ui.progress.ProgressScreen
-import edu.bu.reptrack.ui.session.WorkoutSessionScreen
+import edu.bu.reptrack.ui.profile.ProfileRoute
+import edu.bu.reptrack.ui.progress.ProgressRoute
+import edu.bu.reptrack.ui.session.WorkoutSessionRoute
 import edu.bu.reptrack.ui.setup.GoalSetupRoute
 import edu.bu.reptrack.ui.workouts.WorkoutsRoute
 
@@ -66,9 +74,28 @@ private fun FirstScreen.route(): String = when (this) {
     FirstScreen.TABS -> TopLevelDestination.START.route
 }
 
+/** Screens that take the whole screen, so the bottom bar is hidden on them. */
+private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION)
+
 /**
- * Bottom navigation bar plus the nav host. The bar is hidden on sign in and goal setup.
- * [isSetupDone] tells sign in where to go next: goal setup, or straight to the tabs.
+ * Switches tabs the way the bottom bar does. Android's rule: Workouts home is always at the
+ * bottom of the stack, so Back from any other tab lands there, and Back from Workouts leaves
+ * the app. We pop up to the Workouts home *screen* (not the Workouts graph), keep one copy of
+ * each tab, and each tab keeps its own state.
+ */
+private fun NavHostController.navigateToTab(destination: TopLevelDestination) {
+    navigate(destination.route) {
+        popUpTo(Routes.WORKOUTS_HOME) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+/**
+ * Bottom navigation bar plus the nav host. The bar is hidden on sign in, goal setup and
+ * during a workout. [isSetupDone] tells sign in where to go next: goal setup, or the tabs.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -81,7 +108,7 @@ fun RepTrackNavHost(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val currentRoute = currentDestination?.route ?: startRoute
-    val showBottomBar = currentRoute != Routes.GOAL_SETUP && currentRoute != Routes.SIGN_IN
+    val showBottomBar = currentRoute !in fullScreenRoutes
 
     Scaffold(
         modifier = modifier,
@@ -92,18 +119,7 @@ fun RepTrackNavHost(
                         val selected = currentDestination?.hierarchy?.any { it.route == destination.route } == true
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                navController.navigate(destination.route) {
-                                    // Keep one copy of each tab and restore its state when we come back.
-                                    // Workouts is always at the bottom of the stack, even when the
-                                    // graph started on goal setup, so we pop up to it.
-                                    popUpTo(TopLevelDestination.START.route) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navController.navigateToTab(destination) },
                             icon = {
                                 // The label below already names the tab, so the icon is decorative.
                                 Icon(painterResource(destination.iconRes), contentDescription = null)
@@ -122,25 +138,40 @@ fun RepTrackNavHost(
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
+            // Material "fade through" between tabs: quick fade out, then fade in. The default is a slow
+            // 700 ms crossfade that feels like a web page loading.
+            enterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
+            exitTransition = { fadeOut(tween(durationMillis = 90)) },
+            popEnterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
+            popExitTransition = { fadeOut(tween(durationMillis = 90)) },
         ) {
             composable(Routes.SIGN_IN) {
                 SignInRoute(
                     onFinished = {
-                        // Signed in, created an account or skipped. Go on to goal setup (or the tabs if
-                        // setup is already done) and remove sign in so Back does not return to it.
-                        val next = if (isSetupDone) TopLevelDestination.START.route else Routes.GOAL_SETUP
-                        navController.navigate(next) {
-                            popUpTo(Routes.SIGN_IN) { inclusive = true }
+                        if (navController.previousBackStackEntry != null) {
+                            // Opened from the Profile tab, so just go back to it.
+                            navController.popBackStack()
+                        } else {
+                            // First launch or after signing out: go on to goal setup (or the tabs if setup
+                            // is already done) and remove sign in so Back does not return to it.
+                            val next = if (isSetupDone) TopLevelDestination.START.route else Routes.GOAL_SETUP
+                            navController.navigate(next) {
+                                popUpTo(Routes.SIGN_IN) { inclusive = true }
+                            }
                         }
                     },
                 )
             }
 
-            composable(Routes.GOAL_SETUP) {
+            composable(
+                route = Routes.GOAL_SETUP,
+                enterTransition = { slideInFromRight() },
+                popExitTransition = { slideOutToRight() },
+            ) {
                 GoalSetupRoute(
                     onFinished = {
                         if (navController.previousBackStackEntry != null) {
-                            // Opened from the Workouts tab, so just go back to it.
+                            // Opened from the Workouts or Profile tab, so just go back to it.
                             navController.popBackStack()
                         } else {
                             // First launch: open the tabs, and remove setup so Back does not return to it.
@@ -160,15 +191,52 @@ fun RepTrackNavHost(
                         onSetUpPlan = { navController.navigate(Routes.GOAL_SETUP) },
                     )
                 }
+                // A workout slides in from the right. With predictive back, it follows your finger
+                // when you swipe back, like other Android apps.
                 composable(
                     route = Routes.WORKOUT_SESSION,
                     arguments = listOf(navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType }),
-                ) { entry ->
-                    WorkoutSessionScreen(routineId = entry.arguments?.getString(Routes.ARG_ROUTINE_ID).orEmpty())
+                    enterTransition = { slideInFromRight() },
+                    popExitTransition = { slideOutToRight() },
+                ) {
+                    // The routine id reaches the ViewModel through its SavedStateHandle.
+                    WorkoutSessionRoute(
+                        onFinished = {
+                            // Close the session, then show the saved workout on the Progress tab.
+                            navController.popBackStack()
+                            navController.navigateToTab(TopLevelDestination.PROGRESS)
+                        },
+                        onLeave = { navController.popBackStack() },
+                    )
                 }
             }
             composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
-            composable(TopLevelDestination.PROGRESS.route) { ProgressScreen() }
+            composable(TopLevelDestination.PROGRESS.route) {
+                ProgressRoute(onStartWorkout = { navController.navigateToTab(TopLevelDestination.WORKOUTS) })
+            }
+            composable(TopLevelDestination.PROFILE.route) {
+                ProfileRoute(
+                    // Goal setup opens with the saved stats filled in, so it works as an edit screen.
+                    onEditStats = { navController.navigate(Routes.GOAL_SETUP) },
+                    onSignIn = { navController.navigate(Routes.SIGN_IN) },
+                    onSignedOut = {
+                        // Clear everything, so Back from sign in leaves the app instead of showing the tabs.
+                        navController.navigate(Routes.SIGN_IN) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    },
+                )
+            }
         }
     }
 }
+
+private const val SLIDE_MILLIS = 300
+
+/** Screen opened on top of a tab: slides in from the right. */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.slideInFromRight() =
+    slideIntoContainer(SlideDirection.Start, tween(SLIDE_MILLIS))
+
+/** Same screen going away with Back: slides out to the right. */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.slideOutToRight() =
+    slideOutOfContainer(SlideDirection.End, tween(SLIDE_MILLIS))

@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Needed for Firebase sign-in now, and for the exercise catalog later. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- allowBackup is off so workout data and run routes are not copied to cloud backups. -->
+    <!-- allowBackup is off so workout data and run routes are not copied to cloud backups.
+         enableOnBackInvokedCallback turns on predictive back (the swipe-back preview) on Android 13 to 15.
+         Android 16 and newer have it on already. -->
     <application
         android:name=".RepTrackApplication"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="33"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

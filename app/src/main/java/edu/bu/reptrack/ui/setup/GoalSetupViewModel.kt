@@ -14,10 +14,12 @@ import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.ProfileValidator
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
+import edu.bu.reptrack.domain.profile.formatKg
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -38,7 +40,8 @@ data class GoalSetupUiState(
 
 /**
  * Holds the setup form. Typed values live in [SavedStateHandle], so they survive
- * rotation and the app being killed in the background.
+ * rotation and the app being killed in the background. If a profile is already saved,
+ * the form opens filled in, so the same screen works for editing stats from Profile.
  */
 class GoalSetupViewModel(
     private val repository: ProfileRepository,
@@ -51,6 +54,24 @@ class GoalSetupViewModel(
     private val goal = savedState.getStateFlow(KEY_GOAL, FitnessGoal.LOSE_WEIGHT.name)
     private val place = savedState.getStateFlow(KEY_PLACE, TrainingPlace.GYM.name)
     private val done = MutableStateFlow(false)
+
+    init {
+        // Only on a fresh open. After rotation or the app being killed, keep what was typed.
+        if (formIsEmpty()) {
+            viewModelScope.launch {
+                val saved = repository.profile.first() ?: return@launch
+                // The user may have started typing while the profile loaded. Do not overwrite that.
+                if (!formIsEmpty()) return@launch
+                savedState[KEY_HEIGHT] = formatKg(saved.heightCm)
+                savedState[KEY_WEIGHT] = formatKg(saved.weightKg)
+                savedState[KEY_GOAL_WEIGHT] = formatKg(saved.goalWeightKg)
+                savedState[KEY_GOAL] = saved.goal.name
+                savedState[KEY_PLACE] = saved.place.name
+            }
+        }
+    }
+
+    private fun formIsEmpty() = height.value.isEmpty() && weight.value.isEmpty() && goalWeight.value.isEmpty()
 
     private val form = combine(height, weight, goalWeight, goal, place) { h, w, g, goalName, placeName ->
         FormValues(h, w, g, FitnessGoal.valueOf(goalName), TrainingPlace.valueOf(placeName))
