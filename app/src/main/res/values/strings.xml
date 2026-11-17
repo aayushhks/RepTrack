@@ -151,6 +151,7 @@
     <string name="run_open_settings">Open settings</string>
     <string name="run_start">Start</string>
     <string name="run_finish">Finish and save</string>
+    <string name="run_finish_hint">Move at least %1$d m to save this run.</string>
     <string name="run_discard">Discard</string>
     <string name="run_saving">Saving…</string>
     <string name="run_leave_title">Stop this run?</string>

@@ -62,6 +62,7 @@ class RunScreenTest {
         composeRule.onNodeWithTag("run_time", useUnmergedTree = true).assertTextEquals("12:34")
         composeRule.onNodeWithTag("run_pace", useUnmergedTree = true).assertTextEquals("5:13 /km")
         composeRule.onNodeWithTag("run_calories", useUnmergedTree = true).assertTextEquals("182 kcal")
+        composeRule.onNodeWithTag("run_finish_hint").assertDoesNotExist()
         composeRule.onNodeWithTag("run_finish").assertIsEnabled().performClick()
 
         assertTrue(finished)
@@ -73,6 +74,7 @@ class RunScreenTest {
 
         composeRule.onNodeWithText("Waiting for GPS…").assertIsDisplayed()
         composeRule.onNodeWithTag("run_finish").assertIsNotEnabled()
+        composeRule.onNodeWithText("Move at least 10 m to save this run.").assertIsDisplayed()
     }
 
     @Test

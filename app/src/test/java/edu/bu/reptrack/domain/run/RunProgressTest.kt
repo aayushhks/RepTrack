@@ -32,12 +32,21 @@ class RunProgressTest {
     }
 
     @Test
-    fun gpsJump_isIgnored_andTheRunCarriesOn() {
+    fun gpsJump_addsNoDistance_andTheRunCarriesOn() {
         val progress = RunProgress()
             .add(pointNorth(0.0, 0))
             .add(pointNorth(500.0, 2_000)) // 250 m/s: a jump, not a runner
-            .add(pointNorth(10.0, 4_000))
+            .add(pointNorth(10.0, 4_000)) // back on track: also a jump, adds nothing
+            .add(pointNorth(20.0, 6_000))
         assertEquals(10.0, progress.distanceM, 0.2)
+    }
+
+    @Test
+    fun farAwayFirstFix_doesNotBlockTheRun() {
+        // The first fix is an old place 50 km away. The real run starts right after.
+        var progress = RunProgress().add(pointNorth(50_000.0, 0))
+        for (i in 1..11) progress = progress.add(pointNorth((i - 1) * 10.0, timeMillis = i * 3_000L))
+        assertEquals(100.0, progress.distanceM, 0.5)
     }
 
     @Test

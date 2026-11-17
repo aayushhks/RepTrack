@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -243,6 +244,18 @@ fun RunScreen(
                             .testTag("run_finish"),
                     ) {
                         Text(stringResource(R.string.run_finish))
+                    }
+                    if (!state.canFinish) {
+                        // Says why Finish is greyed out, instead of leaving the user guessing.
+                        Text(
+                            text = stringResource(R.string.run_finish_hint, RunUiState.MIN_SAVE_DISTANCE_M.toInt()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("run_finish_hint"),
+                        )
                     }
                     OutlinedButton(
                         onClick = onClose,

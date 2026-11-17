@@ -12,6 +12,7 @@ data class GeoPoint(
     val longitude: Double,
     /** Radius in meters the true position is likely inside. Smaller is better. */
     val accuracyM: Float,
+    /** When the fix was taken, in ms since the phone booted. That clock never jumps, unlike wall time. */
     val timeMillis: Long,
 )
 

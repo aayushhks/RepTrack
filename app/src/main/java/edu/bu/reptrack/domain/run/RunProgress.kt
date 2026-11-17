@@ -21,8 +21,10 @@ data class RunProgress(
         if (seconds <= 0) return this
 
         val meters = RunMath.distanceM(last, point)
-        // Faster than a sprinter: the GPS jumped, not the runner.
-        if (meters / seconds > MAX_SPEED_MPS) return this
+        // Faster than a sprinter: the GPS jumped, not the runner. Add nothing, but start again
+        // from the new fix. Otherwise one bad old fix (like the phone's last place from hours ago)
+        // would make every later fix look like a jump, and the distance would stay at 0.
+        if (meters / seconds > MAX_SPEED_MPS) return copy(lastPoint = point)
         // Standing still, GPS drifts a few meters. Keep the old fix so the drift never adds up.
         if (meters < MIN_STEP_M) return this
 
