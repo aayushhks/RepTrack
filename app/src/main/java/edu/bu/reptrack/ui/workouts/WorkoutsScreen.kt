@@ -58,6 +58,7 @@ import edu.bu.reptrack.ui.theme.RepTrackTheme
 @Composable
 fun WorkoutsRoute(
     onStartWorkout: (routineId: String) -> Unit,
+    onStartRun: () -> Unit,
     onSetUpPlan: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WorkoutsViewModel = viewModel(factory = WorkoutsViewModel.Factory),
@@ -67,6 +68,7 @@ fun WorkoutsRoute(
         state = state,
         onPlaceSelected = viewModel::onPlaceSelected,
         onStartWorkout = onStartWorkout,
+        onStartRun = onStartRun,
         onSetUpPlan = onSetUpPlan,
         modifier = modifier,
     )
@@ -79,6 +81,7 @@ fun WorkoutsScreen(
     state: WorkoutsUiState,
     onPlaceSelected: (TrainingPlace) -> Unit,
     onStartWorkout: (routineId: String) -> Unit,
+    onStartRun: () -> Unit,
     onSetUpPlan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -126,6 +129,9 @@ fun WorkoutsScreen(
         state.routines.forEach { routine ->
             RoutineCard(routine = routine, onStart = { onStartWorkout(routine.id) })
         }
+
+        SectionLabel(R.string.workouts_cardio_label)
+        RunCard(onStart = onStartRun)
     }
 }
 
@@ -291,6 +297,47 @@ private fun RoutineCard(routine: WorkoutTemplate, onStart: () -> Unit, modifier:
     }
 }
 
+/** Same quiet card as a routine, for a GPS walk or run. */
+@Composable
+private fun RunCard(onStart: () -> Unit, modifier: Modifier = Modifier) {
+    val startLabel = stringResource(R.string.workouts_run_start)
+    OutlinedCard(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.workouts_run_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.workouts_run_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                FilledTonalButton(
+                    onClick = onStart,
+                    modifier = Modifier
+                        .semantics { contentDescription = startLabel }
+                        .testTag("start_run"),
+                ) {
+                    Text(stringResource(R.string.workouts_start))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SectionLabel(@StringRes text: Int) {
     Text(
@@ -318,6 +365,7 @@ private fun WorkoutsScreenPreview() {
             ),
             onPlaceSelected = {},
             onStartWorkout = {},
+            onStartRun = {},
             onSetUpPlan = {},
         )
     }
