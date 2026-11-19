@@ -23,6 +23,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
@@ -31,10 +32,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -55,6 +59,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.workout.LoggedSet
+import edu.bu.reptrack.domain.workout.Rest
+import kotlinx.coroutines.delay
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 
 /**
@@ -88,6 +94,8 @@ fun WorkoutSessionRoute(
         onEditSet = viewModel::onEditSet,
         onClose = viewModel::requestLeave,
         onFinish = viewModel::finish,
+        onAdjustRest = viewModel::adjustRest,
+        onSkipRest = viewModel::skipRest,
         modifier = modifier,
     )
 
@@ -118,6 +126,8 @@ fun WorkoutSessionScreen(
     onEditSet: (LoggedSet) -> Unit,
     onClose: () -> Unit,
     onFinish: () -> Unit,
+    onAdjustRest: (seconds: Int) -> Unit,
+    onSkipRest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -171,6 +181,9 @@ fun WorkoutSessionScreen(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            state.rest?.let { rest ->
+                RestBar(rest = rest, onAdjust = onAdjustRest, onSkip = onSkipRest)
+            }
             Text(
                 text = if (state.setCount == 0) {
                     stringResource(R.string.session_no_sets)
@@ -389,6 +402,89 @@ private fun EditSetDialog(
     )
 }
 
+/**
+ * Rest countdown after a set, with − and + 15 seconds and Skip. It counts down on screen from
+ * the end time the ViewModel keeps, and buzzes once when the rest is over.
+ */
+@Composable
+private fun RestBar(rest: RestTimerUi, onAdjust: (Int) -> Unit, onSkip: () -> Unit) {
+    val remainingMs by produceState(Rest.remainingMs(rest.endsAt, System.currentTimeMillis()), rest.endsAt) {
+        var left = Rest.remainingMs(rest.endsAt, System.currentTimeMillis())
+        value = left
+        while (left > 0) {
+            val step = minOf(1_000L, left)
+            delay(step)
+            // Whichever is further along: the steps waited, or the clock (it moves on while the phone sleeps).
+            left = minOf(left - step, Rest.remainingMs(rest.endsAt, System.currentTimeMillis()))
+            value = left
+        }
+    }
+    val isOver = remainingMs == 0L
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(isOver) {
+        if (isOver) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    Column(
+        modifier = Modifier.testTag("rest_bar"),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (isOver) {
+                    stringResource(R.string.session_rest_over)
+                } else {
+                    stringResource(R.string.session_rest_left, Rest.format(remainingMs))
+                },
+                style = MaterialTheme.typography.titleMedium,
+                // Read out once when the rest is over, not every second.
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (isOver) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier)
+                    .testTag("rest_text"),
+            )
+            if (!isOver) {
+                // TalkBack reads "15 seconds less rest" instead of "minus 15 s".
+                val lessLabel = stringResource(R.string.session_rest_minus_label, Rest.STEP_SECONDS)
+                val moreLabel = stringResource(R.string.session_rest_plus_label, Rest.STEP_SECONDS)
+                TextButton(
+                    onClick = { onAdjust(-Rest.STEP_SECONDS) },
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .semantics { contentDescription = lessLabel }
+                        .testTag("rest_minus"),
+                ) {
+                    Text(stringResource(R.string.session_rest_minus, Rest.STEP_SECONDS))
+                }
+                TextButton(
+                    onClick = { onAdjust(Rest.STEP_SECONDS) },
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .semantics { contentDescription = moreLabel }
+                        .testTag("rest_plus"),
+                ) {
+                    Text(stringResource(R.string.session_rest_plus, Rest.STEP_SECONDS))
+                }
+            }
+            TextButton(
+                onClick = onSkip,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("rest_skip"),
+            ) {
+                Text(stringResource(if (isOver) R.string.session_rest_dismiss else R.string.session_rest_skip))
+            }
+        }
+        LinearProgressIndicator(
+            progress = { Rest.fractionLeft(remainingMs, rest.totalMs) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
 @Composable
 private fun LeaveDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
     AlertDialog(
@@ -432,6 +528,8 @@ private fun WorkoutSessionScreenPreview() {
             onEditSet = {},
             onClose = {},
             onFinish = {},
+            onAdjustRest = {},
+            onSkipRest = {},
         )
     }
 }

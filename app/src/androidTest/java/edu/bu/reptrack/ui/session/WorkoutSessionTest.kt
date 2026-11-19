@@ -109,4 +109,16 @@ class WorkoutSessionTest {
         composeRule.waitUntil(timeoutMillis = 5_000) { left.get() }
         assertTrue(repository.allSessions.isEmpty())
     }
+
+    @Test
+    fun loggingASet_startsTheRestTimer_andSkipHidesIt() {
+        showSession()
+        composeRule.onNodeWithTag("rest_bar").assertDoesNotExist()
+
+        logSquat("60", "10")
+
+        composeRule.onNodeWithTag("rest_bar").assertIsDisplayed()
+        composeRule.onNodeWithTag("rest_skip").performClick()
+        composeRule.onNodeWithTag("rest_bar").assertDoesNotExist()
+    }
 }

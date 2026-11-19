@@ -83,6 +83,14 @@
     <!-- Example: "3 sets, 1160 kg total volume" -->
     <string name="session_totals">%1$s, %2$s kg total volume</string>
     <string name="session_finish">Finish workout</string>
+    <string name="session_rest_left">Rest %1$s</string>
+    <string name="session_rest_over">Rest over. Next set!</string>
+    <string name="session_rest_minus">−%1$d s</string>
+    <string name="session_rest_plus">+%1$d s</string>
+    <string name="session_rest_minus_label">%1$d seconds less rest</string>
+    <string name="session_rest_plus_label">%1$d seconds more rest</string>
+    <string name="session_rest_skip">Skip</string>
+    <string name="session_rest_dismiss">Dismiss</string>
     <string name="session_leave_title">Leave this workout?</string>
     <string name="session_leave_message">Your logged sets will be deleted. To keep them, finish the workout instead.</string>
     <string name="session_leave_discard">Discard workout</string>
