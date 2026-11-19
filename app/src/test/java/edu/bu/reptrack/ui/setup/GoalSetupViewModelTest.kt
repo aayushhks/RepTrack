@@ -8,6 +8,7 @@ import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.testing.FakeProfileRepository
+import edu.bu.reptrack.testing.FakeWeightRepository
 import edu.bu.reptrack.testing.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -26,9 +27,11 @@ class GoalSetupViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeProfileRepository()
+    private val weights = FakeWeightRepository()
+    private var clock = 1_000L
 
     private fun newViewModel(savedState: SavedStateHandle = SavedStateHandle()) =
-        GoalSetupViewModel(repository, savedState)
+        GoalSetupViewModel(repository, weights, savedState, now = { clock })
 
     private fun GoalSetupViewModel.fillValidForm() {
         onHeightChange("178")
@@ -106,6 +109,48 @@ class GoalSetupViewModelTest {
     }
 
     @Test
+    fun save_logsTheWeight_soTheChartStartsAtSetup() = runTest {
+        val viewModel = newViewModel()
+        viewModel.fillValidForm()
+
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(listOf(82f), weights.saved.map { it.weightKg })
+        assertEquals(1_000L, weights.saved.single().loggedAt)
+    }
+
+    @Test
+    fun editingOnlyTheGoal_doesNotLogTheSameWeightAgain() = runTest {
+        repository.saveProfile(UserProfile(178f, 82f, 76f, FitnessGoal.LOSE_WEIGHT, TrainingPlace.GYM))
+        weights.addWeight(82f, loggedAt = 500L)
+        val viewModel = newViewModel()
+        advanceUntilIdle()
+
+        viewModel.onGoalWeightChange("74")
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(1, weights.saved.size)
+        assertEquals(74f, repository.savedProfile!!.goalWeightKg)
+    }
+
+    @Test
+    fun editingTheWeight_logsTheNewWeight() = runTest {
+        repository.saveProfile(UserProfile(178f, 82f, 76f, FitnessGoal.LOSE_WEIGHT, TrainingPlace.GYM))
+        weights.addWeight(82f, loggedAt = 500L)
+        val viewModel = newViewModel()
+        advanceUntilIdle()
+
+        clock = 9_000L
+        viewModel.onWeightChange("80.5")
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(listOf(82f, 80.5f), weights.saved.map { it.weightKg })
+    }
+
+    @Test
     fun save_withInvalidForm_doesNothing() = runTest {
         val viewModel = newViewModel()
 
@@ -115,6 +160,7 @@ class GoalSetupViewModelTest {
         assertNull(repository.savedProfile)
         assertFalse(repository.setupDone)
         assertFalse(viewModel.uiState.value.isDone)
+        assertTrue(weights.saved.isEmpty())
     }
 
     @Test

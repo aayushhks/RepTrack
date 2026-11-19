@@ -13,5 +13,13 @@ fun formatWorkoutDate(
 ): String = DateTimeFormatter.ofPattern("EEE, MMM d", locale)
     .format(Instant.ofEpochMilli(epochMillis).atZone(zone))
 
+/** A short date for the chart's axis, like "Nov 7". */
+fun formatShortDate(
+    epochMillis: Long,
+    zone: ZoneId = ZoneId.systemDefault(),
+    locale: Locale = Locale.getDefault(),
+): String = DateTimeFormatter.ofPattern("MMM d", locale)
+    .format(Instant.ofEpochMilli(epochMillis).atZone(zone))
+
 /** Splits whole minutes into hours and minutes: 75 -> (1, 15). */
 fun splitHoursMinutes(totalMinutes: Long): Pair<Long, Long> = totalMinutes / 60 to totalMinutes % 60

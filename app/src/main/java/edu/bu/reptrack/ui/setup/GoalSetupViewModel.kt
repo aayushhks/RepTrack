@@ -9,12 +9,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import edu.bu.reptrack.RepTrackApplication
 import edu.bu.reptrack.data.profile.ProfileRepository
+import edu.bu.reptrack.data.weight.WeightRepository
 import edu.bu.reptrack.domain.profile.FieldError
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.ProfileValidator
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.formatKg
+import kotlin.math.abs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -42,10 +44,13 @@ data class GoalSetupUiState(
  * Holds the setup form. Typed values live in [SavedStateHandle], so they survive
  * rotation and the app being killed in the background. If a profile is already saved,
  * the form opens filled in, so the same screen works for editing stats from Profile.
+ * A new weight also goes into the weight log, so the chart on Progress starts at setup.
  */
 class GoalSetupViewModel(
     private val repository: ProfileRepository,
+    private val weights: WeightRepository,
     private val savedState: SavedStateHandle,
+    private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     private val height = savedState.getStateFlow(KEY_HEIGHT, "")
@@ -113,6 +118,11 @@ class GoalSetupViewModel(
         ) ?: return
         viewModelScope.launch {
             repository.saveProfile(profile)
+            // Editing only the height or the goal should not add the same weight to the log again.
+            val latest = weights.latestWeight()
+            if (latest == null || abs(latest.weightKg - profile.weightKg) >= SAME_WEIGHT_KG) {
+                weights.addWeight(profile.weightKg, now())
+            }
             done.value = true
         }
     }
@@ -168,10 +178,17 @@ class GoalSetupViewModel(
         private const val KEY_GOAL = "goal"
         private const val KEY_PLACE = "place"
 
+        /** The form shows one decimal, so anything closer than this is the same weight. */
+        private const val SAME_WEIGHT_KG = 0.05f
+
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as RepTrackApplication
-                GoalSetupViewModel(app.container.profileRepository, createSavedStateHandle())
+                GoalSetupViewModel(
+                    repository = app.container.profileRepository,
+                    weights = app.container.weightRepository,
+                    savedState = createSavedStateHandle(),
+                )
             }
         }
     }
