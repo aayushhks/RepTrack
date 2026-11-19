@@ -2,6 +2,7 @@ package edu.bu.reptrack.fakes
 
 import edu.bu.reptrack.data.profile.ProfileRepository
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.settings.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -14,6 +15,14 @@ class FakeProfileRepository : ProfileRepository {
     override val profile: Flow<UserProfile?> = profileFlow
     override val isSetupDone: Flow<Boolean> = setupDoneFlow
     override val skippedSignIn: Flow<Boolean> = skippedSignInFlow
+
+    private val themeModeFlow = MutableStateFlow(ThemeMode.DARK)
+    override val themeMode: Flow<ThemeMode> = themeModeFlow
+    val savedThemeMode: ThemeMode get() = themeModeFlow.value
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        themeModeFlow.value = mode
+    }
 
     val savedProfile: UserProfile? get() = profileFlow.value
     val setupDone: Boolean get() = setupDoneFlow.value

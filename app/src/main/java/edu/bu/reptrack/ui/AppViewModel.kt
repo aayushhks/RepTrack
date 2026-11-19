@@ -9,17 +9,22 @@ import edu.bu.reptrack.RepTrackApplication
 import edu.bu.reptrack.data.auth.AuthRepository
 import edu.bu.reptrack.data.profile.ProfileRepository
 import edu.bu.reptrack.domain.auth.FirstScreen
+import edu.bu.reptrack.domain.settings.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-/** App-level state: decides whether the app opens on sign in, goal setup or the tabs. */
+/** App-level state: the theme, and whether the app opens on sign in, goal setup or the tabs. */
 class AppViewModel(
     authRepository: AuthRepository,
     profileRepository: ProfileRepository,
 ) : ViewModel() {
+
+    /** Dark until DataStore answers, so the default look shows without a flash. */
+    val themeMode: StateFlow<ThemeMode> = profileRepository.themeMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.DARK)
 
     /** Null while DataStore is still being read, then true or false. */
     val isSetupDone: StateFlow<Boolean?> = profileRepository.isSetupDone

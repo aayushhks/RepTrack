@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Ink navy behind the launcher dumbbell. -->
-    <color name="ic_launcher_background">#172235</color>
-    <!-- Window background before Compose draws. Matches Chalk in ui/theme/Color.kt. -->
-    <color name="app_background">#F6F6F4</color>
+    <!-- Night behind the lime launcher dumbbell. Matches Night in ui/theme/Color.kt. -->
+    <color name="ic_launcher_background">#0B0D10</color>
+    <!-- Window background before Compose draws. The app is dark by default, so this matches Night. -->
+    <color name="app_background">#0B0D10</color>
 </resources>

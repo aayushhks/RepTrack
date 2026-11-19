@@ -4,6 +4,7 @@ import edu.bu.reptrack.data.auth.AuthUser
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.settings.ThemeMode
 import edu.bu.reptrack.testing.FakeAuthRepository
 import edu.bu.reptrack.testing.FakeProfileRepository
 import edu.bu.reptrack.testing.FakeWorkoutRepository
@@ -115,5 +116,17 @@ class ProfileViewModelTest {
 
         assertFalse(viewModel.uiState.value.showSignOutDialog)
         assertEquals("aayush@bu.edu", viewModel.uiState.value.user?.email)
+    }
+
+    @Test
+    fun theme_startsDark_andAChoiceIsSaved() = runTest {
+        val viewModel = newViewModel(FakeAuthRepository())
+        startCollecting(viewModel)
+        assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
+
+        viewModel.setThemeMode(ThemeMode.LIGHT)
+
+        assertEquals(ThemeMode.LIGHT, profiles.savedThemeMode)
+        assertEquals(ThemeMode.LIGHT, viewModel.uiState.value.themeMode)
     }
 }

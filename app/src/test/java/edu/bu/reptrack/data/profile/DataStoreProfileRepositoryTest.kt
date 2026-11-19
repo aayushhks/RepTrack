@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.settings.ThemeMode
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
@@ -95,5 +96,21 @@ class DataStoreProfileRepositoryTest {
 
         assertTrue(repository.skippedSignIn.first())
         assertFalse(repository.isSetupDone.first())
+    }
+
+    @Test
+    fun newInstall_isDark() = runTest {
+        val repository = DataStoreProfileRepository(newDataStore(backgroundScope))
+
+        assertEquals(ThemeMode.DARK, repository.themeMode.first())
+    }
+
+    @Test
+    fun chosenTheme_isRemembered() = runTest {
+        val repository = DataStoreProfileRepository(newDataStore(backgroundScope))
+
+        repository.setThemeMode(ThemeMode.LIGHT)
+
+        assertEquals(ThemeMode.LIGHT, repository.themeMode.first())
     }
 }

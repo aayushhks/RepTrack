@@ -231,4 +231,17 @@ class ProgressViewModelTest {
         assertNull(viewModel.uiState.value.pendingDelete)
         assertEquals(1, weights.saved.size)
     }
+
+    @Test
+    fun weekTotals_countOnlyThisWeek() {
+        val monday = 1_000_000L
+        val items = listOf(
+            HistoryItem.Run(RunSummary(id = 1, startedAt = 0, finishedAt = monday + 10, distanceM = 5_000.0, durationMs = 1, calories = 300)),
+            HistoryItem.Run(RunSummary(id = 2, startedAt = 0, finishedAt = monday - 10, distanceM = 9_000.0, durationMs = 1, calories = 900)),
+        )
+
+        val totals = weekTotals(items, weekStart = monday)
+
+        assertEquals(WeekTotals(workouts = 0, distanceM = 5_000.0, calories = 300), totals)
+    }
 }

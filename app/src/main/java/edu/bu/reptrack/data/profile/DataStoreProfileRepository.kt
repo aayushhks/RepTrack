@@ -12,6 +12,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.settings.ThemeMode
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -33,6 +34,7 @@ class DataStoreProfileRepository(
         val PLACE = stringPreferencesKey("place")
         val SETUP_DONE = booleanPreferencesKey("setup_done")
         val SKIPPED_SIGN_IN = booleanPreferencesKey("skipped_sign_in")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
     }
 
     // A read error (for example a corrupted file) falls back to empty values instead of crashing.
@@ -43,6 +45,8 @@ class DataStoreProfileRepository(
     override val isSetupDone: Flow<Boolean> = safeData.map { it[Keys.SETUP_DONE] ?: false }
 
     override val skippedSignIn: Flow<Boolean> = safeData.map { it[Keys.SKIPPED_SIGN_IN] ?: false }
+
+    override val themeMode: Flow<ThemeMode> = safeData.map { enumOrDefault(it[Keys.THEME_MODE], ThemeMode.DARK) }
 
     override val profile: Flow<UserProfile?> = safeData.map { prefs ->
         val height = prefs[Keys.HEIGHT_CM] ?: return@map null
@@ -66,6 +70,10 @@ class DataStoreProfileRepository(
             prefs[Keys.PLACE] = profile.place.name
             prefs[Keys.SETUP_DONE] = true
         }
+    }
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { prefs -> prefs[Keys.THEME_MODE] = mode.name }
     }
 
     override suspend fun skipSetup() {

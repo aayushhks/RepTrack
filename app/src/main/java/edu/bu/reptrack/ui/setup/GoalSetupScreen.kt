@@ -19,11 +19,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,7 +39,6 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -53,6 +52,7 @@ import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.ui.components.labelRes
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import java.util.Locale
 
 /** Connects the setup screen to its ViewModel and calls [onFinished] once setup is saved or skipped. */
 @Composable
@@ -107,9 +107,8 @@ fun GoalSetupScreen(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = stringResource(R.string.setup_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+                text = stringResource(R.string.setup_title).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.semantics { heading() },
             )
             Text(
@@ -261,7 +260,13 @@ private fun SectionLabel(@StringRes text: Int) {
 
 @Composable
 private fun PlanCard(plan: StarterPlan, modifier: Modifier = Modifier) {
-    OutlinedCard(modifier = modifier.fillMaxWidth()) {
+    // Lime, like today's workout on the Workouts tab: this is the plan the user is about to start.
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -269,12 +274,10 @@ private fun PlanCard(plan: StarterPlan, modifier: Modifier = Modifier) {
             Text(
                 text = stringResource(R.string.setup_plan_label),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = stringResource(R.string.plan_summary, stringResource(plan.type.labelRes()), plan.daysPerWeek),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
                 // TalkBack reads the new plan when the goal or place changes.
                 modifier = Modifier
                     .semantics { liveRegion = LiveRegionMode.Polite }
@@ -283,7 +286,6 @@ private fun PlanCard(plan: StarterPlan, modifier: Modifier = Modifier) {
             Text(
                 text = stringResource(R.string.setup_plan_reason),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

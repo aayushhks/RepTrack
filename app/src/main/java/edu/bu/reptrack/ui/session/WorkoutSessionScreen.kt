@@ -1,32 +1,37 @@
 package edu.bu.reptrack.ui.session
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,15 +42,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -54,14 +61,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.workout.LoggedSet
 import edu.bu.reptrack.domain.workout.Rest
-import kotlinx.coroutines.delay
+import edu.bu.reptrack.ui.components.VoltCard
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import edu.bu.reptrack.ui.theme.statStyle
+import kotlinx.coroutines.delay
 
 /**
  * Connects the workout screen to its ViewModel. [onFinished] runs after the workout is saved,
@@ -140,8 +150,8 @@ fun WorkoutSessionScreen(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             IconButton(
                 onClick = onClose,
@@ -152,17 +162,18 @@ fun WorkoutSessionScreen(
                     contentDescription = stringResource(R.string.session_close),
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = state.routineName.ifEmpty { stringResource(R.string.session_fallback_title) },
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(
                     text = pluralStringResource(R.plurals.exercise_count, state.exercises.size, state.exercises.size),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                ExerciseProgress(exercises = state.exercises)
             }
             state.exercises.forEach { exercise ->
                 ExerciseCard(
@@ -175,41 +186,73 @@ fun WorkoutSessionScreen(
             }
         }
 
-        // Fixed bottom area, so Finish is always one tap away.
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Column(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        // Fixed bottom panel, so the rest timer and Finish are always one tap away.
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         ) {
-            state.rest?.let { rest ->
-                RestBar(rest = rest, onAdjust = onAdjustRest, onSkip = onSkipRest)
-            }
-            Text(
-                text = if (state.setCount == 0) {
-                    stringResource(R.string.session_no_sets)
-                } else {
-                    stringResource(
-                        R.string.session_totals,
-                        pluralStringResource(R.plurals.set_count, state.setCount, state.setCount),
-                        formatKg(state.totalVolumeKg),
-                    )
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .semantics { liveRegion = LiveRegionMode.Polite }
-                    .testTag("session_totals"),
-            )
-            Button(
-                onClick = onFinish,
-                enabled = state.canFinish,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp)
-                    .testTag("finish_button"),
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.session_finish))
+                state.rest?.let { rest ->
+                    RestTimer(rest = rest, onAdjust = onAdjustRest, onSkip = onSkipRest)
+                }
+                Text(
+                    text = if (state.setCount == 0) {
+                        stringResource(R.string.session_no_sets)
+                    } else {
+                        stringResource(
+                            R.string.session_totals,
+                            pluralStringResource(R.plurals.set_count, state.setCount, state.setCount),
+                            formatKg(state.totalVolumeKg),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .semantics { liveRegion = LiveRegionMode.Polite }
+                        .testTag("session_totals"),
+                )
+                Button(
+                    onClick = onFinish,
+                    enabled = state.canFinish,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .testTag("finish_button"),
+                ) {
+                    Text(stringResource(R.string.session_finish), style = MaterialTheme.typography.titleMedium)
+                }
             }
+        }
+    }
+}
+
+/** One bar per exercise, lime once it has a set, so the user sees how far along they are. */
+@Composable
+private fun ExerciseProgress(exercises: List<ExerciseUi>) {
+    if (exercises.isEmpty()) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+            .clearAndSetSemantics {},
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        exercises.forEach { exercise ->
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp),
+                shape = CircleShape,
+                color = if (exercise.sets.isNotEmpty()) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+            ) {}
         }
     }
 }
@@ -226,99 +269,108 @@ private fun ExerciseCard(
     val focusManager = LocalFocusManager.current
     val addLabel = stringResource(R.string.session_add_set_for, exercise.name)
 
-    OutlinedCard(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = exercise.name,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics { heading() },
-            )
+    VoltCard(modifier = modifier) {
+        Text(
+            text = exercise.name,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.semantics { heading() },
+        )
 
-            exercise.sets.forEach { set ->
-                SetRow(set = set, exerciseName = exercise.name, onClick = { onEditSet(set) })
+        if (exercise.sets.isNotEmpty()) {
+            Column {
+                exercise.sets.forEach { set ->
+                    SetRow(set = set, exerciseName = exercise.name, onClick = { onEditSet(set) })
+                }
             }
+        }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = exercise.weightInput,
-                    onValueChange = onWeightChange,
-                    label = { Text(stringResource(R.string.session_weight)) },
-                    suffix = { Text(stringResource(R.string.unit_kg)) },
-                    isError = exercise.weightError,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
-                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Right) }),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("weight_${exercise.name}"),
-                )
-                OutlinedTextField(
-                    value = exercise.repsInput,
-                    onValueChange = onRepsChange,
-                    label = { Text(stringResource(R.string.session_reps)) },
-                    isError = exercise.repsError,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { onAddSet() }),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("reps_${exercise.name}"),
-                )
-            }
-
-            if (exercise.weightError || exercise.repsError) {
-                Text(
-                    text = stringResource(
-                        if (exercise.repsError) R.string.error_reps_range else R.string.error_set_weight_range,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                )
-            }
-
-            FilledTonalButton(
-                onClick = onAddSet,
-                // TalkBack says "Add set to Squat" instead of just "Add set".
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(
+                value = exercise.weightInput,
+                onValueChange = onWeightChange,
+                label = { Text(stringResource(R.string.session_weight)) },
+                suffix = { Text(stringResource(R.string.unit_kg)) },
+                isError = exercise.weightError,
+                singleLine = true,
+                textStyle = statStyle(24.sp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Right) }),
                 modifier = Modifier
-                    .align(Alignment.End)
-                    .semantics { contentDescription = addLabel }
-                    .testTag("add_${exercise.name}"),
-            ) {
-                Text(stringResource(R.string.session_add_set))
-            }
+                    .weight(1f)
+                    .testTag("weight_${exercise.name}"),
+            )
+            OutlinedTextField(
+                value = exercise.repsInput,
+                onValueChange = onRepsChange,
+                label = { Text(stringResource(R.string.session_reps)) },
+                isError = exercise.repsError,
+                singleLine = true,
+                textStyle = statStyle(24.sp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onAddSet() }),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("reps_${exercise.name}"),
+            )
+        }
+
+        if (exercise.weightError || exercise.repsError) {
+            Text(
+                text = stringResource(
+                    if (exercise.repsError) R.string.error_reps_range else R.string.error_set_weight_range,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+
+        Button(
+            onClick = onAddSet,
+            // TalkBack says "Add set to Squat" instead of just "Add set".
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .semantics { contentDescription = addLabel }
+                .testTag("add_${exercise.name}"),
+        ) {
+            Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(8.dp))
+            Text(stringResource(R.string.session_add_set))
         }
     }
 }
 
-/** One logged set. The whole row is a button that opens the edit dialog. */
+/** One logged set: a lime check, the set number, the numbers big. The whole row opens the edit dialog. */
 @Composable
 private fun SetRow(set: LoggedSet, exerciseName: String, onClick: () -> Unit) {
     val editLabel = stringResource(R.string.session_edit_set, set.setNumber)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = 52.dp)
             .clickable(onClickLabel = editLabel, role = Role.Button, onClick = onClick)
             .testTag("set_${exerciseName}_${set.setNumber}"),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Surface(modifier = Modifier.size(28.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+            Icon(
+                painter = painterResource(R.drawable.ic_check),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(6.dp),
+            )
+        }
         Text(
             text = stringResource(R.string.session_set_label, set.setNumber),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(56.dp),
+            modifier = Modifier.width(48.dp),
         )
         Text(
             text = setValueText(set),
-            style = MaterialTheme.typography.bodyLarge,
+            style = statStyle(24.sp),
             modifier = Modifier.weight(1f),
         )
         Text(
@@ -403,11 +455,12 @@ private fun EditSetDialog(
 }
 
 /**
- * Rest countdown after a set, with − and + 15 seconds and Skip. It counts down on screen from
- * the end time the ViewModel keeps, and buzzes once when the rest is over.
+ * Rest countdown after a set: a ring that empties, the time left in big numbers, and
+ * − 15 s, + 15 s and Skip. It counts down on screen from the end time the ViewModel keeps,
+ * and buzzes once when the rest is over.
  */
 @Composable
-private fun RestBar(rest: RestTimerUi, onAdjust: (Int) -> Unit, onSkip: () -> Unit) {
+private fun RestTimer(rest: RestTimerUi, onAdjust: (Int) -> Unit, onSkip: () -> Unit) {
     val remainingMs by produceState(Rest.remainingMs(rest.endsAt, System.currentTimeMillis()), rest.endsAt) {
         var left = Rest.remainingMs(rest.endsAt, System.currentTimeMillis())
         value = left
@@ -425,63 +478,82 @@ private fun RestBar(rest: RestTimerUi, onAdjust: (Int) -> Unit, onSkip: () -> Un
         if (isOver) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
-    Column(
-        modifier = Modifier.testTag("rest_bar"),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("rest_bar"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clearAndSetSemantics {},
+            contentAlignment = Alignment.Center,
         ) {
+            CircularProgressIndicator(
+                progress = { Rest.fractionLeft(remainingMs, rest.totalMs) },
+                modifier = Modifier.size(72.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                strokeWidth = 6.dp,
+                strokeCap = StrokeCap.Round,
+            )
+            Text(text = Rest.format(remainingMs), style = statStyle(22.sp))
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = if (isOver) {
                     stringResource(R.string.session_rest_over)
                 } else {
                     stringResource(R.string.session_rest_left, Rest.format(remainingMs))
                 },
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 // Read out once when the rest is over, not every second.
                 modifier = Modifier
-                    .weight(1f)
                     .then(if (isOver) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier)
                     .testTag("rest_text"),
             )
-            if (!isOver) {
-                // TalkBack reads "15 seconds less rest" instead of "minus 15 s".
-                val lessLabel = stringResource(R.string.session_rest_minus_label, Rest.STEP_SECONDS)
-                val moreLabel = stringResource(R.string.session_rest_plus_label, Rest.STEP_SECONDS)
-                TextButton(
-                    onClick = { onAdjust(-Rest.STEP_SECONDS) },
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .semantics { contentDescription = lessLabel }
-                        .testTag("rest_minus"),
-                ) {
-                    Text(stringResource(R.string.session_rest_minus, Rest.STEP_SECONDS))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!isOver) {
+                    // TalkBack reads "15 seconds less rest" instead of "minus 15 s".
+                    val lessLabel = stringResource(R.string.session_rest_minus_label, Rest.STEP_SECONDS)
+                    val moreLabel = stringResource(R.string.session_rest_plus_label, Rest.STEP_SECONDS)
+                    FilledTonalButton(
+                        onClick = { onAdjust(-Rest.STEP_SECONDS) },
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .semantics { contentDescription = lessLabel }
+                            .testTag("rest_minus"),
+                    ) {
+                        Text(stringResource(R.string.session_rest_minus, Rest.STEP_SECONDS))
+                    }
+                    FilledTonalButton(
+                        onClick = { onAdjust(Rest.STEP_SECONDS) },
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .semantics { contentDescription = moreLabel }
+                            .testTag("rest_plus"),
+                    ) {
+                        Text(stringResource(R.string.session_rest_plus, Rest.STEP_SECONDS))
+                    }
                 }
-                TextButton(
-                    onClick = { onAdjust(Rest.STEP_SECONDS) },
+                OutlinedButton(
+                    onClick = onSkip,
+                    contentPadding = PaddingValues(horizontal = 12.dp),
                     modifier = Modifier
+                        .weight(1f)
                         .heightIn(min = 48.dp)
-                        .semantics { contentDescription = moreLabel }
-                        .testTag("rest_plus"),
+                        .testTag("rest_skip"),
                 ) {
-                    Text(stringResource(R.string.session_rest_plus, Rest.STEP_SECONDS))
+                    Text(stringResource(if (isOver) R.string.session_rest_dismiss else R.string.session_rest_skip))
                 }
-            }
-            TextButton(
-                onClick = onSkip,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag("rest_skip"),
-            ) {
-                Text(stringResource(if (isOver) R.string.session_rest_dismiss else R.string.session_rest_skip))
             }
         }
-        LinearProgressIndicator(
-            progress = { Rest.fractionLeft(remainingMs, rest.totalMs) },
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 

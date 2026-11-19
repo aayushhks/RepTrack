@@ -12,7 +12,9 @@ import edu.bu.reptrack.data.auth.AuthUser
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.settings.ThemeMode
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -28,6 +30,7 @@ class ProfileScreenTest {
     private var editClicked = false
     private var signInClicked = false
     private var signOutClicked = false
+    private var chosenTheme: ThemeMode? = null
 
     private val stats = UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)
 
@@ -39,6 +42,7 @@ class ProfileScreenTest {
                     onEditStats = { editClicked = true },
                     onSignIn = { signInClicked = true },
                     onSignOut = { signOutClicked = true },
+                    onThemeChange = { chosenTheme = it },
                 )
             }
         }
@@ -90,5 +94,14 @@ class ProfileScreenTest {
         composeRule.onNodeWithText("Set up your plan").performScrollTo().performClick()
 
         assertTrue(editClicked)
+    }
+
+    @Test
+    fun themePicker_reportsTheChoice() {
+        show(ProfileUiState(isLoading = false, user = null, profile = stats))
+
+        composeRule.onNodeWithTag("theme_light").performScrollTo().performClick()
+
+        assertEquals(ThemeMode.LIGHT, chosenTheme)
     }
 }

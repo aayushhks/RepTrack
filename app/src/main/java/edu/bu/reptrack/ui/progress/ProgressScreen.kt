@@ -1,7 +1,6 @@
 package edu.bu.reptrack.ui.progress
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,22 +8,22 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +32,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -59,7 +60,11 @@ import edu.bu.reptrack.domain.weight.WeightEntry
 import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.WorkoutSession
 import edu.bu.reptrack.domain.workout.durationMinutes
+import edu.bu.reptrack.ui.components.IconTile
+import edu.bu.reptrack.ui.components.Overline
+import edu.bu.reptrack.ui.components.StatTile
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -119,6 +124,13 @@ fun ProgressScreen(
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item(key = "page_title") {
+            Text(
+                text = stringResource(R.string.tab_progress).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.headlineLarge,
+                modifier = Modifier.semantics { heading() },
+            )
+        }
         item(key = "weight_title") { SectionTitle(stringResource(R.string.weight_title)) }
         item(key = "weight_card", contentType = "weight") {
             val weight = state.weight
@@ -128,8 +140,12 @@ fun ProgressScreen(
                 WeightCard(weight = weight, onLogWeight = onLogWeight, onDeleteWeight = onDeleteWeight)
             }
         }
+        item(key = "week_title") {
+            SectionTitle(stringResource(R.string.workouts_this_week), Modifier.padding(top = 8.dp))
+        }
+        item(key = "week_totals", contentType = "week") { WeekTotalsRow(week = state.week) }
         item(key = "history_title") {
-            SectionTitle(stringResource(R.string.progress_history_title), Modifier.padding(top = 16.dp))
+            SectionTitle(stringResource(R.string.progress_history_title), Modifier.padding(top = 8.dp))
         }
         if (state.items.isEmpty()) {
             item { EmptyHistory(onStartWorkout = onStartWorkout) }
@@ -164,24 +180,45 @@ fun ProgressScreen(
 
 @Composable
 private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.headlineMedium,
-        modifier = modifier
-            .padding(bottom = 4.dp)
-            .semantics { heading() },
-    )
+    Overline(text = text, modifier = modifier.semantics { heading() })
+}
+
+/** Workouts, distance and calories since Monday, as three stat tiles. */
+@Composable
+private fun WeekTotalsRow(week: WeekTotals) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("week_totals"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        StatTile(
+            label = stringResource(R.string.progress_week_workouts),
+            value = week.workouts.toString(),
+            modifier = Modifier.weight(1f),
+        )
+        StatTile(
+            label = stringResource(R.string.progress_week_distance),
+            value = stringResource(R.string.progress_km, RunFormat.km(week.distanceM)),
+            modifier = Modifier.weight(1f),
+        )
+        StatTile(
+            label = stringResource(R.string.progress_week_calories),
+            value = stringResource(R.string.run_calories_value, week.calories),
+            valueColor = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 /** Before the first weigh-in: says what the card is for and how to start. */
 @Composable
 private fun EmptyWeightCard(onLogWeight: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedCard(
+    Card(
         modifier = modifier
             .fillMaxWidth()
             .testTag("weight_empty"),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -193,7 +230,7 @@ private fun EmptyWeightCard(onLogWeight: () -> Unit, modifier: Modifier = Modifi
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            FilledTonalButton(
+            Button(
                 onClick = onLogWeight,
                 modifier = Modifier
                     .padding(top = 4.dp)
@@ -214,12 +251,11 @@ private fun WeightCard(
     onDeleteWeight: (WeightEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedCard(
+    Card(
         modifier = modifier
             .fillMaxWidth()
             .testTag("weight_card"),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -246,7 +282,7 @@ private fun WeightCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                FilledTonalButton(
+                Button(
                     onClick = onLogWeight,
                     modifier = Modifier
                         .heightIn(min = 48.dp)
@@ -258,8 +294,8 @@ private fun WeightCard(
 
             Text(
                 text = changeText(weight),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.testTag("weight_change"),
             )
 
@@ -344,8 +380,12 @@ private fun GoalProgress(weight: WeightSummary, goalKg: Float, modifier: Modifie
             val label = stringResource(R.string.weight_goal_progress_label)
             LinearProgressIndicator(
                 progress = { progress },
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                strokeCap = StrokeCap.Round,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(8.dp)
                     .testTag("weight_goal_progress")
                     .semantics { contentDescription = label },
             )
@@ -474,92 +514,77 @@ private fun DeleteWeightDialog(entry: WeightEntry, onConfirm: () -> Unit, onDism
 @Composable
 private fun HistoryCard(summary: SessionSummary, modifier: Modifier = Modifier) {
     val session = summary.session
-    OutlinedCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("history_${session.id}"),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = formatWorkoutDate(session.finishedAt ?: session.startedAt),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = durationText(session),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(text = session.name, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = stringResource(
-                    R.string.history_stats,
-                    pluralStringResource(R.plurals.exercise_count, summary.exerciseCount, summary.exerciseCount),
-                    pluralStringResource(R.plurals.set_count, summary.setCount, summary.setCount),
-                    formatKg(summary.totalVolumeKg),
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("history_stats_${session.id}"),
-            )
-        }
-    }
+    HistoryRow(
+        icon = R.drawable.ic_tab_workouts,
+        tint = MaterialTheme.colorScheme.primary,
+        container = MaterialTheme.colorScheme.surfaceContainerHigh,
+        date = formatWorkoutDate(session.finishedAt ?: session.startedAt),
+        duration = durationText(session),
+        title = session.name,
+        stats = stringResource(
+            R.string.history_stats,
+            pluralStringResource(R.plurals.exercise_count, summary.exerciseCount, summary.exerciseCount),
+            pluralStringResource(R.plurals.set_count, summary.setCount, summary.setCount),
+            formatKg(summary.totalVolumeKg),
+        ),
+        statsTag = "history_stats_${session.id}",
+        modifier = modifier.testTag("history_${session.id}"),
+    )
 }
 
 /** A walk or run in the history: date, time, then distance, pace and calories. */
 @Composable
 private fun RunHistoryCard(run: RunSummary, modifier: Modifier = Modifier) {
-    OutlinedCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("run_${run.id}"),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    HistoryRow(
+        icon = R.drawable.ic_run,
+        tint = MaterialTheme.colorScheme.tertiary,
+        container = MaterialTheme.colorScheme.tertiaryContainer,
+        date = formatWorkoutDate(run.finishedAt),
+        duration = RunFormat.duration(run.durationMs),
+        title = stringResource(if (run.isWalk) R.string.history_walk else R.string.history_run),
+        stats = stringResource(
+            R.string.history_run_stats,
+            RunFormat.km(run.distanceM),
+            RunFormat.pace(run.paceSecondsPerKm),
+            run.calories,
+        ),
+        statsTag = "run_stats_${run.id}",
+        modifier = modifier.testTag("run_${run.id}"),
+    )
+}
+
+/** One history card: a lime tile for a workout or an orange one for cardio, then the details. */
+@Composable
+private fun HistoryRow(
+    icon: Int,
+    tint: Color,
+    container: Color,
+    date: String,
+    duration: String,
+    title: String,
+    stats: String,
+    statsTag: String,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            IconTile(icon = icon, tint = tint, container = container)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = date, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = duration, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(text = title, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = formatWorkoutDate(run.finishedAt),
-                    style = MaterialTheme.typography.labelLarge,
+                    text = stats,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = RunFormat.duration(run.durationMs),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag(statsTag),
                 )
             }
-            Text(
-                text = stringResource(if (run.isWalk) R.string.history_walk else R.string.history_run),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(
-                    R.string.history_run_stats,
-                    RunFormat.km(run.distanceM),
-                    RunFormat.pace(run.paceSecondsPerKm),
-                    run.calories,
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("run_stats_${run.id}"),
-            )
         }
     }
 }
