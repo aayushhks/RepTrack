@@ -24,7 +24,7 @@ class WorkoutSessionViewModelTest {
     private val repository = FakeWorkoutRepository(now = { clock })
 
     private fun newViewModel(extra: Map<String, Any?> = emptyMap()) =
-        WorkoutSessionViewModel(repository, SavedStateHandle(mapOf("routineId" to "full_body_a") + extra))
+        WorkoutSessionViewModel(repository, SavedStateHandle(mapOf("routineId" to "full_body_a") + extra)) { clock }
 
     private fun WorkoutSessionViewModel.log(exercise: String, weight: String, reps: String) {
         onWeightChange(exercise, weight)
@@ -217,5 +217,78 @@ class WorkoutSessionViewModelTest {
 
         assertNotNull(viewModel.squat().sets.singleOrNull())
         assertTrue(viewModel.uiState.value.canFinish)
+    }
+
+    // ---- Rest timer ----
+
+    @Test
+    fun noRest_beforeTheFirstSet() = runTest {
+        assertNull(newViewModel().uiState.value.rest)
+    }
+
+    @Test
+    fun loggingASet_startsA90SecondRest() = runTest {
+        val viewModel = newViewModel()
+        viewModel.log("Squat", "60", "10")
+        advanceUntilIdle()
+
+        val rest = viewModel.uiState.value.rest
+        assertEquals(clock + 90_000, rest?.endsAt)
+        assertEquals(90_000L, rest?.totalMs)
+    }
+
+    @Test
+    fun badSet_doesNotStartARest() = runTest {
+        val viewModel = newViewModel()
+        viewModel.log("Squat", "60", "")
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.rest)
+    }
+
+    @Test
+    fun plusAndMinus_moveTheEnd() = runTest {
+        val viewModel = newViewModel()
+        viewModel.log("Squat", "60", "10")
+        advanceUntilIdle()
+        val start = viewModel.uiState.value.rest!!.endsAt
+
+        viewModel.adjustRest(15)
+        assertEquals(start + 15_000, viewModel.uiState.value.rest?.endsAt)
+        assertEquals(105_000L, viewModel.uiState.value.rest?.totalMs)
+
+        viewModel.adjustRest(-15)
+        assertEquals(start, viewModel.uiState.value.rest?.endsAt)
+    }
+
+    @Test
+    fun minusPastZero_endsTheRest() = runTest {
+        val viewModel = newViewModel()
+        viewModel.log("Squat", "60", "10")
+        advanceUntilIdle()
+        clock += 80_000
+
+        viewModel.adjustRest(-15)
+
+        assertNull(viewModel.uiState.value.rest)
+    }
+
+    @Test
+    fun skip_clearsTheRest() = runTest {
+        val viewModel = newViewModel()
+        viewModel.log("Squat", "60", "10")
+        advanceUntilIdle()
+
+        viewModel.skipRest()
+
+        assertNull(viewModel.uiState.value.rest)
+    }
+
+    @Test
+    fun rest_comesBackFromSavedState() = runTest {
+        val viewModel = newViewModel(mapOf("rest_ends_at" to 50_000L, "rest_total_ms" to 90_000L))
+        advanceUntilIdle()
+
+        assertEquals(50_000L, viewModel.uiState.value.rest?.endsAt)
     }
 }

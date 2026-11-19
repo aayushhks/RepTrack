@@ -11,6 +11,7 @@ import edu.bu.reptrack.RepTrackApplication
 import edu.bu.reptrack.data.workout.WorkoutRepository
 import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.workout.LoggedSet
+import edu.bu.reptrack.domain.workout.Rest
 import edu.bu.reptrack.domain.workout.SetInput
 import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.exercisesToShow
@@ -51,6 +52,12 @@ data class EditSetUi(
     val repsError: Boolean = false,
 )
 
+/**
+ * The rest countdown after a set. The end time is a clock time, not a number of seconds left,
+ * so the countdown stays right after rotation, the app going to the background, or being killed.
+ */
+data class RestTimerUi(val endsAt: Long, val totalMs: Long)
+
 /** Everything the workout screen needs to draw itself. */
 data class WorkoutSessionUiState(
     val routineName: String = "",
@@ -60,6 +67,8 @@ data class WorkoutSessionUiState(
     val editing: EditSetUi? = null,
     val showLeaveDialog: Boolean = false,
     val outcome: SessionOutcome? = null,
+    /** Null when no rest is running. */
+    val rest: RestTimerUi? = null,
 ) {
     val canFinish: Boolean get() = setCount > 0
 }
@@ -73,6 +82,7 @@ data class WorkoutSessionUiState(
 class WorkoutSessionViewModel(
     private val repository: WorkoutRepository,
     private val savedState: SavedStateHandle,
+    private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     private val routineId: String = savedState.get<String>(Routes.ARG_ROUTINE_ID).orEmpty()
@@ -106,8 +116,13 @@ class WorkoutSessionViewModel(
         .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else repository.observeSets(id) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val uiState: StateFlow<WorkoutSessionUiState> = combine(sets, local) { sets, local ->
-        buildState(sets, local)
+    // The rest timer lives in SavedStateHandle, like the session id, so it survives the app being killed.
+    private val restEndsAt = savedState.getStateFlow<Long?>(KEY_REST_ENDS_AT, null)
+    private val restTotalMs = savedState.getStateFlow(KEY_REST_TOTAL_MS, Rest.DEFAULT_MS)
+    private val rest = combine(restEndsAt, restTotalMs) { endsAt, total -> endsAt?.let { RestTimerUi(it, total) } }
+
+    val uiState: StateFlow<WorkoutSessionUiState> = combine(sets, local, rest) { sets, local, rest ->
+        buildState(sets, local).copy(rest = rest)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -137,6 +152,7 @@ class WorkoutSessionViewModel(
         viewModelScope.launch {
             val id = ensureSession()
             repository.addSet(id, exercise, parsed.weightKg, parsed.reps)
+            startRest()
         }
     }
 
@@ -181,6 +197,32 @@ class WorkoutSessionViewModel(
 
     fun dismissEdit() {
         local.update { it.copy(editing = null) }
+    }
+
+    // ---- Rest timer ----
+
+    /** The − and + buttons: shorter or longer rest. Taking it below zero ends the rest. */
+    fun adjustRest(deltaSeconds: Int) {
+        val endsAt = restEndsAt.value ?: return
+        val newEnd = endsAt + deltaSeconds * 1000L
+        val left = newEnd - now()
+        if (left <= 0) {
+            skipRest()
+            return
+        }
+        savedState[KEY_REST_ENDS_AT] = newEnd
+        // The bar is measured against the total, so a longer rest makes the total longer too.
+        savedState[KEY_REST_TOTAL_MS] = maxOf(restTotalMs.value + deltaSeconds * 1000L, left)
+    }
+
+    /** Skip, or dismiss the rest once it is over. */
+    fun skipRest() {
+        savedState[KEY_REST_ENDS_AT] = null
+    }
+
+    private fun startRest() {
+        savedState[KEY_REST_TOTAL_MS] = Rest.DEFAULT_MS
+        savedState[KEY_REST_ENDS_AT] = now() + Rest.DEFAULT_MS
     }
 
     // ---- Finishing and leaving ----
@@ -256,6 +298,8 @@ class WorkoutSessionViewModel(
 
     companion object {
         private const val KEY_SESSION_ID = "session_id"
+        private const val KEY_REST_ENDS_AT = "rest_ends_at"
+        private const val KEY_REST_TOTAL_MS = "rest_total_ms"
 
         /** Used only if the routine id is unknown, which should not happen. */
         private const val FALLBACK_NAME = "Workout"
