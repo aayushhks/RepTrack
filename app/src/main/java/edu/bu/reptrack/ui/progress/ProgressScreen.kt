@@ -33,6 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.profile.formatKg
+import edu.bu.reptrack.domain.run.RunFormat
+import edu.bu.reptrack.domain.run.RunSummary
 import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.WorkoutSession
 import edu.bu.reptrack.domain.workout.durationMinutes
@@ -49,7 +51,7 @@ fun ProgressRoute(
     ProgressScreen(state = state, onStartWorkout = onStartWorkout, modifier = modifier)
 }
 
-/** Progress tab: finished workouts, newest first. The weight chart comes in the beta. Stateless. */
+/** Progress tab: finished workouts and runs, newest first. Stateless. */
 @Composable
 fun ProgressScreen(
     state: ProgressUiState,
@@ -85,11 +87,20 @@ fun ProgressScreen(
                     .semantics { heading() },
             )
         }
-        if (state.history.isEmpty()) {
+        if (state.items.isEmpty()) {
             item { EmptyHistory(onStartWorkout = onStartWorkout) }
         } else {
-            items(state.history, key = { it.session.id }) { summary ->
-                HistoryCard(summary = summary)
+            // Stable keys keep each card in place when a new one arrives; the content type lets
+            // the list reuse a workout card for a workout and a run card for a run.
+            items(
+                items = state.items,
+                key = { it.key },
+                contentType = { item -> if (item is HistoryItem.Run) "run" else "workout" },
+            ) { item ->
+                when (item) {
+                    is HistoryItem.Workout -> HistoryCard(summary = item.summary)
+                    is HistoryItem.Run -> RunHistoryCard(run = item.run)
+                }
             }
         }
     }
@@ -141,6 +152,54 @@ private fun HistoryCard(summary: SessionSummary, modifier: Modifier = Modifier) 
     }
 }
 
+/** A walk or run in the history: date, time, then distance, pace and calories. */
+@Composable
+private fun RunHistoryCard(run: RunSummary, modifier: Modifier = Modifier) {
+    OutlinedCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("run_${run.id}"),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = formatWorkoutDate(run.finishedAt),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = RunFormat.duration(run.durationMs),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = stringResource(if (run.isWalk) R.string.history_walk else R.string.history_run),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(
+                    R.string.history_run_stats,
+                    RunFormat.km(run.distanceM),
+                    RunFormat.pace(run.paceSecondsPerKm),
+                    run.calories,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("run_stats_${run.id}"),
+            )
+        }
+    }
+}
+
 @Composable
 private fun durationText(session: WorkoutSession): String {
     val minutes = durationMinutes(session) ?: 0L
@@ -184,7 +243,10 @@ private fun ProgressScreenPreview() {
         ProgressScreen(
             state = ProgressUiState(
                 isLoading = false,
-                history = listOf(SessionSummary(session, exerciseCount = 5, setCount = 15, totalVolumeKg = 4250f)),
+                items = listOf(
+                    HistoryItem.Run(RunSummary(2, 0, 60 * 60_000L, 5_020.0, 26 * 60_000L, 410)),
+                    HistoryItem.Workout(SessionSummary(session, exerciseCount = 5, setCount = 15, totalVolumeKg = 4250f)),
+                ),
             ),
             onStartWorkout = {},
         )

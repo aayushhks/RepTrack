@@ -42,6 +42,7 @@ import edu.bu.reptrack.ui.profile.ProfileRoute
 import edu.bu.reptrack.ui.progress.ProgressRoute
 import edu.bu.reptrack.ui.session.WorkoutSessionRoute
 import edu.bu.reptrack.ui.setup.GoalSetupRoute
+import edu.bu.reptrack.ui.run.RunRoute
 import edu.bu.reptrack.ui.workouts.WorkoutsRoute
 
 /** App root: waits for the saved sign-in and profile state, then opens on sign in, goal setup or the tabs. */
@@ -75,7 +76,7 @@ private fun FirstScreen.route(): String = when (this) {
 }
 
 /** Screens that take the whole screen, so the bottom bar is hidden on them. */
-private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION)
+private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION, Routes.RUN)
 
 /**
  * Switches tabs the way the bottom bar does. Android's rule: Workouts home is always at the
@@ -188,7 +189,24 @@ fun RepTrackNavHost(
                 composable(Routes.WORKOUTS_HOME) {
                     WorkoutsRoute(
                         onStartWorkout = { routineId -> navController.navigate(Routes.workoutSession(routineId)) },
+                        onStartRun = { navController.navigate(Routes.RUN) { launchSingleTop = true } },
                         onSetUpPlan = { navController.navigate(Routes.GOAL_SETUP) },
+                    )
+                }
+                // A walk or run, full screen like a workout. The recording itself outlives this
+                // screen, so leaving it by mistake asks first instead of losing the run.
+                composable(
+                    route = Routes.RUN,
+                    enterTransition = { slideInFromRight() },
+                    popExitTransition = { slideOutToRight() },
+                ) {
+                    RunRoute(
+                        onFinished = {
+                            // Close the run, then show it on the Progress tab.
+                            navController.popBackStack()
+                            navController.navigateToTab(TopLevelDestination.PROGRESS)
+                        },
+                        onLeave = { navController.popBackStack() },
                     )
                 }
                 // A workout slides in from the right. With predictive back, it follows your finger

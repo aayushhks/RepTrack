@@ -56,6 +56,10 @@
     <string name="workouts_exercise_count">%1$d exercises</string>
     <string name="workouts_start">Start</string>
     <string name="workouts_start_routine">Start %1$s</string>
+    <string name="workouts_cardio_label">Cardio</string>
+    <string name="workouts_run_title">Walk or run</string>
+    <string name="workouts_run_message">Live distance, time, pace and calories with GPS. Your route stays on your phone.</string>
+    <string name="workouts_run_start">Start a walk or run</string>
 
     <!-- Workout session -->
     <string name="session_fallback_title">Workout</string>
@@ -89,7 +93,7 @@
     <!-- Progress tab -->
     <string name="progress_history_title">Workout history</string>
     <string name="progress_empty_title">No workouts yet</string>
-    <string name="progress_empty_message">Finish a workout and it shows up here with its sets and total volume.</string>
+    <string name="progress_empty_message">Finish a workout or a run and it shows up here with its totals.</string>
     <string name="progress_empty_button">Start a workout</string>
     <!-- Example: "5 exercises, 15 sets, 4250 kg volume" -->
     <string name="history_stats">%1$s, %2$s, %3$s kg volume</string>
@@ -126,6 +130,41 @@
         <item quantity="one">%d exercise</item>
         <item quantity="other">%d exercises</item>
     </plurals>
+
+    <!-- Walk or run -->
+    <string name="run_title">Walk or run</string>
+    <string name="run_close">Leave run</string>
+    <string name="run_ready">Tap Start when you are ready. Your route stays on this phone; only the totals are saved.</string>
+    <string name="run_tracking">Tracking. You can lock your phone.</string>
+    <string name="run_waiting_gps">Waiting for GPS…</string>
+    <string name="run_location_failed">Location stopped. Check that location is on, then finish or discard this run.</string>
+    <string name="run_approximate">Precise location is off, so distance may not count. Turn on precise location in Settings.</string>
+    <string name="run_distance_unit">kilometers</string>
+    <string name="run_time">Time</string>
+    <string name="run_pace">Pace</string>
+    <string name="run_pace_value">%1$s /km</string>
+    <string name="run_calories">Calories</string>
+    <string name="run_calories_value">%1$d kcal</string>
+    <string name="run_weight_hint">Calories use 70 kg. Add your weight in Profile for a better estimate.</string>
+    <string name="run_permission_title">Location is needed to track a run</string>
+    <string name="run_permission_message">RepTrack uses your location only while a run is on. You can still log workouts without it.</string>
+    <string name="run_open_settings">Open settings</string>
+    <string name="run_start">Start</string>
+    <string name="run_finish">Finish and save</string>
+    <string name="run_finish_hint">Move at least %1$d m to save this run.</string>
+    <string name="run_discard">Discard</string>
+    <string name="run_saving">Saving…</string>
+    <string name="run_leave_title">Stop this run?</string>
+    <string name="run_leave_message">It will not be saved. To keep it, finish it instead.</string>
+    <string name="run_leave_discard">Discard run</string>
+    <string name="run_leave_keep">Keep going</string>
+    <string name="run_notification_title">Run in progress</string>
+    <string name="run_notification_text">%1$s km so far</string>
+    <string name="run_channel_name">Run tracking</string>
+    <string name="run_channel_description">Shows distance and time while a walk or run is being tracked.</string>
+    <string name="history_run">Run</string>
+    <string name="history_walk">Walk</string>
+    <string name="history_run_stats">%1$s km, %2$s /km pace, %3$d kcal</string>
 
     <!-- Sign in -->
     <string name="sign_in_title">Sign in</string>

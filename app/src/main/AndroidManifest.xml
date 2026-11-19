@@ -5,6 +5,15 @@
     <!-- Needed for Firebase sign-in now, and for the exercise catalog later. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Run tracking. Location is asked for only when the user taps Start on a run, and only
+         while the app is in use: there is no background location permission. The foreground
+         service keeps tracking with the screen off and shows a notification the whole time. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- allowBackup is off so workout data and run routes are not copied to cloud backups.
          enableOnBackInvokedCallback turns on predictive back (the swipe-back preview) on Android 13 to 15.
          Android 16 and newer have it on already. -->
@@ -28,6 +37,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".service.RunTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
 
 </manifest>

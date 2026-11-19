@@ -28,6 +28,7 @@ class WorkoutsScreenTest {
     val composeRule = createComposeRule()
 
     private var startedRoutine: String? = null
+    private var runStarted = false
     private var setUpClicked = false
     private var chosenPlace: TrainingPlace? = null
 
@@ -38,6 +39,7 @@ class WorkoutsScreenTest {
                     state = state,
                     onPlaceSelected = { chosenPlace = it },
                     onStartWorkout = { startedRoutine = it },
+                    onStartRun = { runStarted = true },
                     onSetUpPlan = { setUpClicked = true },
                 )
             }
@@ -92,5 +94,15 @@ class WorkoutsScreenTest {
         composeRule.onNodeWithText("Home").performClick()
 
         assertEquals(TrainingPlace.HOME, chosenPlace)
+    }
+
+    @Test
+    fun walkOrRunCard_startsARun() {
+        show(stateFor(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)))
+
+        composeRule.onNodeWithText("Walk or run").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("start_run").performScrollTo().performClick()
+
+        assertTrue(runStarted)
     }
 }

@@ -2,6 +2,7 @@ package edu.bu.reptrack
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
@@ -112,6 +113,25 @@ class NavigationTest {
         composeRule.onNodeWithText("Profile").performClick()
         composeRule.onNodeWithTag("screen_profile").assertIsDisplayed()
 
+        Espresso.pressBack()
+        composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
+    }
+
+    @Test
+    fun startingARun_opensFullScreen_andBackReturnsHome() {
+        composeRule.setContent {
+            RepTrackTheme { RepTrackNavHost(startRoute = TopLevelDestination.START.route) }
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("start_run").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeRule.onNodeWithTag("start_run").performScrollTo().performClick()
+
+        composeRule.onNodeWithTag("screen_run").assertIsDisplayed()
+        composeRule.onNodeWithText("Progress").assertDoesNotExist()
+
+        // No run was started, so Back leaves straight away without asking.
         Espresso.pressBack()
         composeRule.onNodeWithTag("screen_workouts").assertIsDisplayed()
     }

@@ -12,4 +12,7 @@ object Routes {
     const val WORKOUT_SESSION = "workout_session/{$ARG_ROUTINE_ID}"
 
     fun workoutSession(routineId: String) = "workout_session/$routineId"
+
+    /** The walk or run screen, also inside the Workouts tab. */
+    const val RUN = "run"
 }
