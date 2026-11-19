@@ -11,6 +11,7 @@ import edu.bu.reptrack.data.auth.AuthUser
 import edu.bu.reptrack.data.profile.ProfileRepository
 import edu.bu.reptrack.data.workout.WorkoutRepository
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.settings.ThemeMode
 import edu.bu.reptrack.domain.workout.startOfWeekMillis
 import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,7 @@ data class ProfileUiState(
     val profile: UserProfile? = null,
     val workoutsThisWeek: Int = 0,
     val volumeThisWeekKg: Float = 0f,
+    val themeMode: ThemeMode = ThemeMode.DARK,
     val showSignOutDialog: Boolean = false,
     /** True once sign-out finished, so the screen can go to sign in. */
     val signedOut: Boolean = false,
@@ -40,7 +42,7 @@ data class ProfileUiState(
  * finished workouts (Room). All three are Flows, so the tab stays up to date by itself.
  */
 class ProfileViewModel(
-    profileRepository: ProfileRepository,
+    private val profileRepository: ProfileRepository,
     private val authRepository: AuthRepository,
     workoutRepository: WorkoutRepository,
     private val now: () -> Long = System::currentTimeMillis,
@@ -55,8 +57,9 @@ class ProfileViewModel(
         authRepository.currentUser,
         profileRepository.profile,
         workoutRepository.observeHistory(),
+        profileRepository.themeMode,
         local,
-    ) { user, profile, history, local ->
+    ) { user, profile, history, themeMode, local ->
         val weekStart = startOfWeekMillis(now(), zone)
         val thisWeek = history.filter { (it.session.finishedAt ?: 0L) >= weekStart }
         ProfileUiState(
@@ -65,6 +68,7 @@ class ProfileViewModel(
             profile = profile,
             workoutsThisWeek = thisWeek.size,
             volumeThisWeekKg = thisWeek.sumOf { it.totalVolumeKg.toDouble() }.toFloat(),
+            themeMode = themeMode,
             showSignOutDialog = local.showSignOutDialog,
             signedOut = local.signedOut,
         )
@@ -73,6 +77,11 @@ class ProfileViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = ProfileUiState(),
     )
+
+    /** Saved right away; the whole app switches colors at once. */
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { profileRepository.setThemeMode(mode) }
+    }
 
     /** Asks first, so a stray tap does not sign the user out. */
     fun requestSignOut() {

@@ -165,4 +165,12 @@ class ProgressScreenTest {
 
         assertTrue(deleteConfirmed)
     }
+
+    @Test
+    fun weekTotals_showWorkoutsDistanceAndCalories() {
+        show(ProgressUiState(isLoading = false, week = WeekTotals(workouts = 3, distanceM = 12_400.0, calories = 1_240)))
+
+        composeRule.onNodeWithText("12.40 km").assertIsDisplayed()
+        composeRule.onNodeWithText("1240 kcal").assertIsDisplayed()
+    }
 }

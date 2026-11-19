@@ -73,3 +73,13 @@ object StarterRoutines {
     fun find(id: String): WorkoutTemplate? =
         routinesByPlan.values.flatten().firstOrNull { it.id == id }
 }
+
+/**
+ * The routine to do next: the one after the last finished routine, going round the plan in
+ * order. The first routine when none of the plan's routines was done yet.
+ */
+fun nextRoutine(routines: List<WorkoutTemplate>, lastRoutineId: String?): WorkoutTemplate? {
+    if (routines.isEmpty()) return null
+    val lastIndex = routines.indexOfFirst { it.id == lastRoutineId }
+    return if (lastIndex == -1) routines.first() else routines[(lastIndex + 1) % routines.size]
+}

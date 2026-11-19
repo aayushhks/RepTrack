@@ -5,8 +5,14 @@ import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.PlanType
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.run.RunSummary
 import edu.bu.reptrack.testing.FakeProfileRepository
+import edu.bu.reptrack.testing.FakeRunRepository
+import edu.bu.reptrack.testing.FakeWeightRepository
+import edu.bu.reptrack.testing.FakeWorkoutRepository
 import edu.bu.reptrack.testing.MainDispatcherRule
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -26,6 +32,17 @@ class WorkoutsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeProfileRepository()
+    private val zone = ZoneOffset.UTC
+
+    // Noon UTC on a date, so the day never shifts. "Today" is Wednesday, November 18, 2026.
+    private fun at(date: String) = LocalDate.parse(date).atTime(12, 0).toInstant(zone).toEpochMilli()
+    private var clock = at("2026-11-18")
+    private val workouts = FakeWorkoutRepository(now = { clock })
+    private val runs = FakeRunRepository()
+    private val weights = FakeWeightRepository()
+
+    private fun newViewModel(savedState: SavedStateHandle = SavedStateHandle()) =
+        WorkoutsViewModel(repository, savedState, workouts, runs, weights, now = { clock }, zone = zone)
 
     private val muscleAtGym = UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)
 
@@ -36,14 +53,14 @@ class WorkoutsViewModelTest {
 
     @Test
     fun startsLoading_beforeAnythingCollects() {
-        val viewModel = WorkoutsViewModel(repository, SavedStateHandle())
+        val viewModel = newViewModel()
 
         assertTrue(viewModel.uiState.value.isLoading)
     }
 
     @Test
     fun noProfile_showsDefaultPlan() = runTest {
-        val viewModel = WorkoutsViewModel(repository, SavedStateHandle())
+        val viewModel = newViewModel()
         startCollecting(viewModel)
 
         val state = viewModel.uiState.value
@@ -56,7 +73,7 @@ class WorkoutsViewModelTest {
     @Test
     fun savedProfile_drivesThePlanAndRoutines() = runTest {
         repository.saveProfile(muscleAtGym)
-        val viewModel = WorkoutsViewModel(repository, SavedStateHandle())
+        val viewModel = newViewModel()
         startCollecting(viewModel)
 
         val state = viewModel.uiState.value
@@ -68,7 +85,7 @@ class WorkoutsViewModelTest {
     @Test
     fun switchingToHome_changesPlanToBodyweight() = runTest {
         repository.saveProfile(muscleAtGym)
-        val viewModel = WorkoutsViewModel(repository, SavedStateHandle())
+        val viewModel = newViewModel()
         startCollecting(viewModel)
 
         viewModel.onPlaceSelected(TrainingPlace.HOME)
@@ -82,7 +99,7 @@ class WorkoutsViewModelTest {
 
     @Test
     fun profileSavedLater_updatesTheScreen() = runTest {
-        val viewModel = WorkoutsViewModel(repository, SavedStateHandle())
+        val viewModel = newViewModel()
         startCollecting(viewModel)
 
         repository.saveProfile(muscleAtGym)
@@ -93,9 +110,67 @@ class WorkoutsViewModelTest {
     @Test
     fun chosenPlace_comesBackFromSavedState() = runTest {
         repository.saveProfile(muscleAtGym)
-        val viewModel = WorkoutsViewModel(repository, SavedStateHandle(mapOf("place" to "HOME")))
+        val viewModel = newViewModel(SavedStateHandle(mapOf("place" to "HOME")))
         startCollecting(viewModel)
 
         assertEquals(TrainingPlace.HOME, viewModel.uiState.value.place)
+    }
+
+    private suspend fun finishWorkout(routineId: String, name: String, date: String) {
+        clock = at(date)
+        val id = workouts.startSession(routineId, name)
+        workouts.addSet(id, "Squat", 60f, 10)
+        workouts.finishSession(id)
+        clock = at("2026-11-18")
+    }
+
+    @Test
+    fun nextRoutine_followsTheLastFinishedOne() = runTest {
+        repository.saveProfile(muscleAtGym)
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+        assertEquals("upper", viewModel.uiState.value.nextRoutine?.id)
+
+        finishWorkout("upper", "Upper body", "2026-11-16")
+
+        val state = viewModel.uiState.value
+        assertEquals("lower", state.nextRoutine?.id)
+        assertEquals(listOf("upper"), state.otherRoutines.map { it.id })
+    }
+
+    @Test
+    fun weekStrip_streakAndCount_comeFromWorkoutsAndRuns() = runTest {
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        finishWorkout("full_body_a", "Full body A", "2026-11-16")
+        runs.saveRun(RunSummary(startedAt = at("2026-11-17"), finishedAt = at("2026-11-17"), distanceM = 3_000.0, durationMs = 900_000, calories = 200))
+        finishWorkout("full_body_b", "Full body B", "2026-11-18")
+
+        val state = viewModel.uiState.value
+        assertEquals(3, state.streakDays)
+        assertEquals(2, state.workoutsThisWeek)
+        assertEquals(7, state.week.size)
+        assertTrue(state.week[2].isToday)
+    }
+
+    @Test
+    fun goalProgress_comesFromTheWeightLog() = runTest {
+        repository.saveProfile(muscleAtGym.copy(weightKg = 79f)) // goal 76
+        weights.addWeight(82f, loggedAt = at("2026-11-01"))
+        weights.addWeight(79f, loggedAt = at("2026-11-15"))
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        assertEquals(0.5f, viewModel.uiState.value.goalProgress!!, 0.001f)
+    }
+
+    @Test
+    fun noWeighIns_meansNoGoalProgress() = runTest {
+        repository.saveProfile(muscleAtGym)
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        assertNull(viewModel.uiState.value.goalProgress)
     }
 }

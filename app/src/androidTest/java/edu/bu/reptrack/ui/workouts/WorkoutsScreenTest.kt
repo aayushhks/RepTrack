@@ -1,7 +1,9 @@
 package edu.bu.reptrack.ui.workouts
 
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -13,7 +15,10 @@ import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.domain.workout.StarterRoutines
+import edu.bu.reptrack.domain.workout.WeekActivity
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import java.time.LocalDate
+import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -104,5 +109,31 @@ class WorkoutsScreenTest {
         composeRule.onNodeWithTag("start_run").performScrollTo().performClick()
 
         assertTrue(runStarted)
+    }
+
+    @Test
+    fun streakAndWeek_areShown_andReadAsOneSentence() {
+        val now = LocalDate.parse("2026-11-18").atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val day = 24 * 60 * 60_000L
+        val week = WeekActivity.thisWeek(listOf(now - 2 * day), listOf(now - day), now, ZoneOffset.UTC)
+        show(
+            stateFor(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM))
+                .copy(week = week, streakDays = 2, goalProgress = 0.33f),
+        )
+
+        composeRule.onNodeWithTag("streak").assertContentDescriptionEquals("2 days in a row")
+        composeRule.onNodeWithTag("week_strip").assertContentDescriptionEquals("This week: 1 workout and 1 walk or run")
+        composeRule.onNode(hasContentDescription("33 percent of the way to your goal weight")).assertIsDisplayed()
+    }
+
+    @Test
+    fun todayCard_startsTheNextRoutine() {
+        val state = stateFor(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM))
+        show(state.copy(nextRoutine = state.routines.last()))
+
+        composeRule.onNodeWithTag("today_card").assertIsDisplayed()
+        composeRule.onNodeWithTag("start_lower").performScrollTo().performClick()
+
+        assertEquals("lower", startedRoutine)
     }
 }

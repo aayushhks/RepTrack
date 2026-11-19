@@ -60,6 +60,14 @@
     <string name="workouts_run_title">Walk or run</string>
     <string name="workouts_run_message">Live distance, time, pace and calories with GPS. Your route stays on your phone.</string>
     <string name="workouts_run_start">Start a walk or run</string>
+    <string name="workouts_greeting">Ready to train</string>
+    <string name="workouts_up_next">Up next</string>
+    <string name="workouts_this_week">This week</string>
+    <string name="workouts_week_progress">%1$d of %2$d workouts done this week</string>
+    <string name="workouts_week_summary">This week: %1$s and %2$s</string>
+    <string name="workouts_streak_label">day streak</string>
+    <string name="workouts_goal_ring">%1$d percent of the way to your goal weight</string>
+    <string name="workouts_weight_from_to">%1$s → %2$s kg</string>
 
     <!-- Workout session -->
     <string name="session_fallback_title">Workout</string>
@@ -103,6 +111,10 @@
     <string name="progress_empty_title">No workouts yet</string>
     <string name="progress_empty_message">Finish a workout or a run and it shows up here with its totals.</string>
     <string name="progress_empty_button">Start a workout</string>
+    <string name="progress_week_workouts">Workouts</string>
+    <string name="progress_week_distance">Distance</string>
+    <string name="progress_week_calories">Burned</string>
+    <string name="progress_km">%1$s km</string>
 
     <!-- Weight log on the Progress tab. weight_change_down example: "2.6 kg down since Sat, Oct 3" -->
     <string name="weight_title">Weight</string>
@@ -154,6 +166,10 @@
     <string name="profile_week_label">This week</string>
     <string name="profile_week_workouts">Workouts</string>
     <string name="profile_week_volume">Total volume</string>
+    <string name="profile_appearance_label">Appearance</string>
+    <string name="profile_theme_dark">Dark</string>
+    <string name="profile_theme_light">Light</string>
+    <string name="profile_theme_system">Like phone</string>
     <string name="profile_account_label">Account</string>
     <string name="profile_sign_in">Sign in or create an account</string>
     <string name="profile_sign_out">Sign out</string>
@@ -169,6 +185,18 @@
     <plurals name="exercise_count">
         <item quantity="one">%d exercise</item>
         <item quantity="other">%d exercises</item>
+    </plurals>
+    <plurals name="workout_count">
+        <item quantity="one">%d workout</item>
+        <item quantity="other">%d workouts</item>
+    </plurals>
+    <plurals name="run_count">
+        <item quantity="one">%d walk or run</item>
+        <item quantity="other">%d walks or runs</item>
+    </plurals>
+    <plurals name="streak_days">
+        <item quantity="one">%d day in a row</item>
+        <item quantity="other">%d days in a row</item>
     </plurals>
 
     <!-- Walk or run -->

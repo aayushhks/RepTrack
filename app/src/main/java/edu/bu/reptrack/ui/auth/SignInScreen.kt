@@ -40,7 +40,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -51,7 +50,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
 import edu.bu.reptrack.data.auth.AuthError
+import edu.bu.reptrack.ui.components.IconTile
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import java.util.Locale
 
 /** Connects the sign-in screen to its ViewModel and calls [onFinished] once the user is signed in or skipped. */
 @Composable
@@ -103,10 +104,18 @@ fun SignInScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The app mark: a lime tile with the dumbbell, like the launcher icon.
+            IconTile(
+                icon = R.drawable.ic_tab_workouts,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                container = MaterialTheme.colorScheme.primaryContainer,
+                size = 56.dp,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
             Text(
-                text = stringResource(if (creating) R.string.sign_in_create_title else R.string.sign_in_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+                text = stringResource(if (creating) R.string.sign_in_create_title else R.string.sign_in_title)
+                    .uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.semantics { heading() },
             )
             Text(

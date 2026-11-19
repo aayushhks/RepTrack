@@ -18,6 +18,8 @@ import edu.bu.reptrack.domain.weight.WeightChartData
 import edu.bu.reptrack.domain.weight.WeightEntry
 import edu.bu.reptrack.domain.weight.WeightTrend
 import edu.bu.reptrack.domain.workout.SessionSummary
+import edu.bu.reptrack.domain.workout.startOfWeekMillis
+import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -72,6 +74,13 @@ data class LogWeightDialog(
     val error: FieldError? = null,
 )
 
+/** This week's totals, from Monday: workouts finished, distance walked or run, and run calories. */
+data class WeekTotals(
+    val workouts: Int = 0,
+    val distanceM: Double = 0.0,
+    val calories: Int = 0,
+)
+
 /** Everything the Progress tab needs to draw itself. */
 data class ProgressUiState(
     val isLoading: Boolean = true,
@@ -79,6 +88,7 @@ data class ProgressUiState(
     val items: List<HistoryItem> = emptyList(),
     /** Null until the first weigh-in. */
     val weight: WeightSummary? = null,
+    val week: WeekTotals = WeekTotals(),
     /** Null while the dialog is closed. */
     val logDialog: LogWeightDialog? = null,
     /** The weigh-in the user asked to delete, waiting for them to confirm. */
@@ -89,6 +99,17 @@ data class ProgressUiState(
 fun mergeHistory(workouts: List<SessionSummary>, runs: List<RunSummary>): List<HistoryItem> =
     (workouts.map { HistoryItem.Workout(it) } + runs.map { HistoryItem.Run(it) })
         .sortedByDescending { it.finishedAt }
+
+/** Adds up the history items finished on or after [weekStart]. */
+fun weekTotals(items: List<HistoryItem>, weekStart: Long): WeekTotals {
+    val thisWeek = items.filter { it.finishedAt >= weekStart }
+    val runs = thisWeek.filterIsInstance<HistoryItem.Run>().map { it.run }
+    return WeekTotals(
+        workouts = thisWeek.count { it is HistoryItem.Workout },
+        distanceM = runs.sumOf { it.distanceM },
+        calories = runs.sumOf { it.calories },
+    )
+}
 
 /** Builds the weight card from all weigh-ins, oldest first. Null when there are none. */
 fun summarizeWeights(entries: List<WeightEntry>, goalKg: Float?): WeightSummary? {
@@ -120,6 +141,7 @@ class ProgressViewModel(
     private val weights: WeightRepository,
     private val profiles: ProfileRepository,
     private val now: () -> Long = System::currentTimeMillis,
+    private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
 
     private data class LocalState(
@@ -136,9 +158,11 @@ class ProgressViewModel(
         profiles.profile,
         local,
     ) { history, runList, weightList, profile, local ->
+        val items = mergeHistory(history, runList)
         ProgressUiState(
             isLoading = false,
-            items = mergeHistory(history, runList),
+            items = items,
+            week = weekTotals(items, startOfWeekMillis(now(), zone)),
             weight = summarizeWeights(weightList, profile?.goalWeightKg),
             logDialog = local.logDialog,
             pendingDelete = local.pendingDelete,

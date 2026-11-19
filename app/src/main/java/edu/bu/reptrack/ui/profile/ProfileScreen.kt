@@ -1,7 +1,6 @@
 package edu.bu.reptrack.ui.profile
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +17,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +42,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
@@ -47,8 +51,11 @@ import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.domain.profile.formatKg
+import edu.bu.reptrack.domain.settings.ThemeMode
+import edu.bu.reptrack.ui.components.Overline
 import edu.bu.reptrack.ui.components.labelRes
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import edu.bu.reptrack.ui.theme.statStyle
 
 /** Connects the Profile tab to its ViewModel. [onSignedOut] runs after signing out. */
 @Composable
@@ -70,6 +77,7 @@ fun ProfileRoute(
         onEditStats = onEditStats,
         onSignIn = onSignIn,
         onSignOut = viewModel::requestSignOut,
+        onThemeChange = viewModel::setThemeMode,
         modifier = modifier,
     )
 
@@ -99,6 +107,7 @@ fun ProfileScreen(
     onEditStats: () -> Unit,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
+    onThemeChange: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.isLoading) {
@@ -117,7 +126,7 @@ fun ProfileScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 24.dp)
+            .padding(horizontal = 20.dp, vertical = 24.dp)
             .testTag("screen_profile"),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -128,6 +137,9 @@ fun ProfileScreen(
 
         SectionLabel(R.string.profile_week_label)
         WeekCard(workouts = state.workoutsThisWeek, volumeKg = state.volumeThisWeekKg)
+
+        SectionLabel(R.string.profile_appearance_label)
+        ThemePicker(selected = state.themeMode, onSelect = onThemeChange)
 
         SectionLabel(R.string.profile_account_label)
         if (state.user != null) {
@@ -160,7 +172,43 @@ fun ProfileScreen(
     }
 }
 
-/** Initial in a navy circle, then the email (or a note that there is no account). */
+/** Dark, light, or follow the phone. Dark is the default look of the app. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemePicker(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    val options = listOf(
+        ThemeMode.DARK to R.string.profile_theme_dark,
+        ThemeMode.LIGHT to R.string.profile_theme_light,
+        ThemeMode.SYSTEM to R.string.profile_theme_system,
+    )
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("theme_picker"),
+    ) {
+        options.forEachIndexed { index, (mode, label) ->
+            SegmentedButton(
+                selected = selected == mode,
+                onClick = { onSelect(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    inactiveContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    activeBorderColor = MaterialTheme.colorScheme.primaryContainer,
+                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+                icon = {},
+                modifier = Modifier.testTag("theme_${mode.name.lowercase()}"),
+            ) {
+                Text(stringResource(label))
+            }
+        }
+    }
+}
+
+/** Initial in a lime circle, then the email (or a note that there is no account). */
 @Composable
 private fun Header(user: AuthUser?) {
     Row(
@@ -169,14 +217,14 @@ private fun Header(user: AuthUser?) {
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.size(64.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
                     text = user?.email?.firstOrNull()?.uppercase() ?: "R",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = statStyle(32.sp),
                 )
             }
         }
@@ -280,25 +328,20 @@ private fun WeekCard(workouts: Int, volumeKg: Float) {
 @Composable
 private fun WeekNumber(value: String, @StringRes label: Int, modifier: Modifier = Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(text = value, style = MaterialTheme.typography.titleLarge)
-        Text(
-            text = stringResource(label),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Text(text = value, style = statStyle(32.sp))
+        Overline(stringResource(label))
     }
 }
 
-/** White card with a hairline border, the same style as the routine and history cards. */
+/** Plain card one step above the background, the same style as the routine and history cards. */
 @Composable
 private fun QuietCard(content: @Composable ColumnScope.() -> Unit) {
-    OutlinedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             content = content,
         )
@@ -307,10 +350,8 @@ private fun QuietCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun SectionLabel(@StringRes text: Int) {
-    Text(
+    Overline(
         text = stringResource(text),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .padding(top = 8.dp)
             .semantics { heading() },
@@ -332,6 +373,7 @@ private fun ProfileScreenPreview() {
             onEditStats = {},
             onSignIn = {},
             onSignOut = {},
+            onThemeChange = {},
         )
     }
 }

@@ -5,24 +5,23 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -32,13 +31,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
@@ -49,10 +54,23 @@ import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.domain.profile.WeightGoalGap
 import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.profile.weightGoalGap
+import edu.bu.reptrack.domain.workout.DayActivity
+import edu.bu.reptrack.domain.workout.DayKind
 import edu.bu.reptrack.domain.workout.StarterRoutines
+import edu.bu.reptrack.domain.workout.WeekActivity
 import edu.bu.reptrack.domain.workout.WorkoutTemplate
+import edu.bu.reptrack.ui.components.GoalRing
+import edu.bu.reptrack.ui.components.IconTile
+import edu.bu.reptrack.ui.components.Overline
+import edu.bu.reptrack.ui.components.VoltCard
 import edu.bu.reptrack.ui.components.labelRes
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import edu.bu.reptrack.ui.theme.statStyle
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle as DateTextStyle
+import java.util.Locale
 
 /** Connects the Workouts tab to its ViewModel. */
 @Composable
@@ -74,7 +92,10 @@ fun WorkoutsRoute(
     )
 }
 
-/** Workouts tab: the user's plan, gym or home, and the routines they can start. Stateless. */
+/**
+ * Workouts tab: the streak, the goal and this week, then today's workout in a lime card,
+ * the plan's other routines and a walk or run. Stateless.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutsScreen(
@@ -101,101 +122,155 @@ fun WorkoutsScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 24.dp)
+            .padding(horizontal = 20.dp, vertical = 24.dp)
             .testTag("screen_workouts"),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Header(streakDays = state.streakDays, today = state.week.firstOrNull { it.isToday }?.date)
+
         val profile = state.profile
         if (profile != null) {
-            PlanCard(plan = state.plan, profile = profile)
+            GoalCard(profile = profile, goalProgress = state.goalProgress, week = state.week)
         } else {
             SetUpPlanCard(onSetUpPlan = onSetUpPlan)
+            if (state.week.isNotEmpty()) {
+                VoltCard { WeekStrip(week = state.week) }
+            }
         }
 
-        SectionLabel(R.string.workouts_place_label)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             TrainingPlace.entries.forEachIndexed { index, place ->
                 SegmentedButton(
                     selected = state.place == place,
                     onClick = { onPlaceSelected(place) },
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = TrainingPlace.entries.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        activeBorderColor = MaterialTheme.colorScheme.primaryContainer,
+                        inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    ),
+                    icon = {},
                 ) {
                     Text(stringResource(place.labelRes()))
                 }
             }
         }
 
-        SectionLabel(R.string.workouts_routines_label)
-        state.routines.forEach { routine ->
-            RoutineCard(routine = routine, onStart = { onStartWorkout(routine.id) })
+        val next = state.nextRoutine
+        if (profile != null && next != null) {
+            TodayCard(
+                plan = state.plan,
+                routine = next,
+                workoutsThisWeek = state.workoutsThisWeek,
+                onStart = { onStartWorkout(next.id) },
+            )
+            if (state.otherRoutines.isNotEmpty()) {
+                SectionLabel(R.string.workouts_routines_label)
+                state.otherRoutines.forEach { routine ->
+                    RoutineRow(routine = routine, onStart = { onStartWorkout(routine.id) })
+                }
+            }
+        } else {
+            SectionLabel(R.string.workouts_routines_label)
+            state.routines.forEach { routine ->
+                RoutineRow(routine = routine, onStart = { onStartWorkout(routine.id) })
+            }
         }
 
         SectionLabel(R.string.workouts_cardio_label)
-        RunCard(onStart = onStartRun)
+        RunRow(onStart = onStartRun)
     }
 }
 
-/** The one bold element on the tab: a navy card with the plan name in big expanded type. */
 @Composable
-private fun PlanCard(plan: StarterPlan, profile: UserProfile, modifier: Modifier = Modifier) {
-    HeroCard(modifier = modifier) {
-        val onHero = MaterialTheme.colorScheme.onPrimary
-        Text(
-            text = stringResource(R.string.workouts_plan_label),
-            style = MaterialTheme.typography.labelLarge,
-            color = onHero.copy(alpha = 0.72f),
-            modifier = Modifier.semantics { heading() },
-        )
-        Text(
-            text = stringResource(plan.type.labelRes()),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier
-                .padding(top = 4.dp)
-                .testTag("plan_name"),
-        )
-        Text(
-            text = stringResource(R.string.plan_days, plan.daysPerWeek),
-            style = MaterialTheme.typography.bodyLarge,
-            color = onHero.copy(alpha = 0.85f),
-        )
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 12.dp),
-            color = onHero.copy(alpha = 0.18f),
-        )
-        Text(
-            text = stringResource(R.string.workouts_goal, stringResource(profile.goal.labelRes())),
-            style = MaterialTheme.typography.titleSmall,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+private fun Header(streakDays: Int, today: LocalDate?) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (today != null) {
+                Text(
+                    text = DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault()).format(today),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                text = stringResource(
-                    R.string.workouts_weight_now_goal,
-                    formatKg(profile.weightKg),
-                    formatKg(profile.goalWeightKg),
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = onHero.copy(alpha = 0.85f),
-                modifier = Modifier.weight(1f),
+                text = stringResource(R.string.workouts_greeting).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.headlineLarge,
+                modifier = Modifier.semantics { heading() },
             )
-            // Olive pill: the app's single accent color, used for progress.
+        }
+        if (streakDays > 0) {
+            val streakText = pluralStringResource(R.plurals.streak_days, streakDays, streakDays)
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.tertiary,
-                contentColor = MaterialTheme.colorScheme.onTertiary,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier
+                    // The tag goes first: clearAndSetSemantics would also clear a tag set after it.
+                    .testTag("streak")
+                    .clearAndSetSemantics { contentDescription = streakText },
             ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_flame),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(text = streakDays.toString(), style = statStyle(18.sp))
+                    Text(
+                        text = stringResource(R.string.workouts_streak_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** The goal ring, the weight from now to the goal, and this week's days. */
+@Composable
+private fun GoalCard(profile: UserProfile, goalProgress: Float?, week: List<DayActivity>) {
+    VoltCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            val progress = goalProgress ?: 0f
+            GoalRing(
+                progress = progress,
+                description = stringResource(R.string.workouts_goal_ring, (progress * 100).toInt()),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.workouts_goal, stringResource(profile.goal.labelRes())),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.workouts_weight_from_to,
+                        formatKg(profile.weightKg),
+                        formatKg(profile.goalWeightKg),
+                    ),
+                    style = statStyle(30.sp),
+                )
                 Text(
                     text = weightGapText(profile),
                     style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                        .testTag("weight_gap"),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.testTag("weight_gap"),
                 )
             }
         }
+        if (week.isNotEmpty()) WeekStrip(week = week)
     }
 }
 
@@ -207,132 +282,224 @@ private fun weightGapText(profile: UserProfile): String =
         WeightGoalGap.AtGoal -> stringResource(R.string.workouts_weight_at_goal)
     }
 
+/**
+ * Monday to Sunday as dots: lime for a workout, orange for a walk or run, a ring for today.
+ * The colors also differ in lightness, and TalkBack reads one summary sentence instead.
+ */
 @Composable
-private fun SetUpPlanCard(onSetUpPlan: () -> Unit, modifier: Modifier = Modifier) {
-    HeroCard(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.workouts_setup_title),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.semantics { heading() },
-        )
-        Text(
-            text = stringResource(R.string.workouts_setup_message),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
-            modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
-        )
-        // Flipped colors so the button stands out on the navy card.
-        Button(
-            onClick = onSetUpPlan,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.onPrimary,
-                contentColor = MaterialTheme.colorScheme.primary,
-            ),
-        ) {
-            Text(stringResource(R.string.workouts_setup_button))
+private fun WeekStrip(week: List<DayActivity>) {
+    val summary = stringResource(
+        R.string.workouts_week_summary,
+        pluralStringResource(R.plurals.workout_count, week.count { it.kind == DayKind.WORKOUT }, week.count { it.kind == DayKind.WORKOUT }),
+        pluralStringResource(R.plurals.run_count, week.count { it.kind == DayKind.RUN }, week.count { it.kind == DayKind.RUN }),
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("week_strip")
+            .clearAndSetSemantics { contentDescription = summary },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        week.forEach { day ->
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = day.date.dayOfWeek.getDisplayName(DateTextStyle.NARROW, Locale.getDefault()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                val fill = when (day.kind) {
+                    DayKind.WORKOUT -> MaterialTheme.colorScheme.primaryContainer
+                    DayKind.RUN -> MaterialTheme.colorScheme.tertiary
+                    DayKind.NONE -> MaterialTheme.colorScheme.surfaceContainerHigh
+                }
+                Surface(
+                    modifier = Modifier.size(28.dp),
+                    shape = CircleShape,
+                    color = fill,
+                    border = if (day.isToday && day.kind == DayKind.NONE) {
+                        BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                    } else {
+                        null
+                    },
+                ) {}
+            }
         }
     }
 }
 
-/** Navy card with the largest corner radius in the app. Only used for the top card. */
+/** The one loud element on the tab: today's workout on a lime card, with Start. */
 @Composable
-private fun HeroCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-        ),
-    ) {
-        Column(modifier = Modifier.padding(24.dp), content = content)
-    }
-}
-
-/** Quiet white card with a hairline border, so the plan card above stays the focus. */
-@Composable
-private fun RoutineCard(routine: WorkoutTemplate, onStart: () -> Unit, modifier: Modifier = Modifier) {
+private fun TodayCard(plan: StarterPlan, routine: WorkoutTemplate, workoutsThisWeek: Int, onStart: () -> Unit) {
+    val onHero = MaterialTheme.colorScheme.onPrimaryContainer
     val startLabel = stringResource(R.string.workouts_start_routine, routine.name)
-    OutlinedCard(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("today_card"),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = onHero,
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Overline(stringResource(R.string.workouts_plan_label), color = onHero, modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.workouts_week_progress, minOf(workoutsThisWeek, plan.daysPerWeek), plan.daysPerWeek),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = onHero,
+                )
+            }
             Text(
-                text = routine.name,
+                text = stringResource(plan.type.labelRes()),
                 style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .semantics { heading() }
+                    .testTag("plan_name"),
             )
             Text(
-                text = routine.exercises.joinToString(separator = ", "),
+                text = stringResource(R.string.plan_days, plan.daysPerWeek),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.size(6.dp))
+            Overline(stringResource(R.string.workouts_up_next), color = onHero)
+            Text(
+                text = routine.name.uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.displaySmall,
+            )
+            Text(
+                text = routine.exercises.joinToString(separator = " · "),
+                style = MaterialTheme.typography.bodyMedium,
             )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = stringResource(R.string.workouts_exercise_count, routine.exercises.size),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
                 )
-                FilledTonalButton(
+                // Ink pill with lime text: the one place the flipped colors are used.
+                Button(
                     onClick = onStart,
-                    // TalkBack says "Start Full body A" instead of just "Start".
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = onHero,
+                        contentColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
                     modifier = Modifier
+                        .heightIn(min = 52.dp)
                         .semantics { contentDescription = startLabel }
                         .testTag("start_${routine.id}"),
                 ) {
-                    Text(stringResource(R.string.workouts_start))
+                    Icon(painterResource(R.drawable.ic_play), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.workouts_start), style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
     }
 }
 
-/** Same quiet card as a routine, for a GPS walk or run. */
 @Composable
-private fun RunCard(onStart: () -> Unit, modifier: Modifier = Modifier) {
-    val startLabel = stringResource(R.string.workouts_run_start)
-    OutlinedCard(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+private fun SetUpPlanCard(onSetUpPlan: () -> Unit) {
+    val onHero = MaterialTheme.colorScheme.onPrimaryContainer
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = onHero,
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = stringResource(R.string.workouts_run_title),
-                style = MaterialTheme.typography.titleMedium,
+                text = stringResource(R.string.workouts_setup_title).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.semantics { heading() },
             )
-            Text(
-                text = stringResource(R.string.workouts_run_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(
+            Text(text = stringResource(R.string.workouts_setup_message), style = MaterialTheme.typography.bodyMedium)
+            Button(
+                onClick = onSetUpPlan,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = onHero,
+                    contentColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.End,
+                    .padding(top = 8.dp)
+                    .heightIn(min = 48.dp),
             ) {
-                FilledTonalButton(
-                    onClick = onStart,
-                    modifier = Modifier
-                        .semantics { contentDescription = startLabel }
-                        .testTag("start_run"),
-                ) {
-                    Text(stringResource(R.string.workouts_start))
-                }
+                Text(stringResource(R.string.workouts_setup_button))
+            }
+        }
+    }
+}
+
+/** One routine: a dumbbell tile, its name and size, and Start. */
+@Composable
+private fun RoutineRow(routine: WorkoutTemplate, onStart: () -> Unit) {
+    val startLabel = stringResource(R.string.workouts_start_routine, routine.name)
+    ListRow(
+        icon = R.drawable.ic_tab_workouts,
+        iconTint = MaterialTheme.colorScheme.primary,
+        iconContainer = MaterialTheme.colorScheme.surfaceContainerHigh,
+        title = routine.name,
+        subtitle = stringResource(R.string.workouts_exercise_count, routine.exercises.size),
+        startLabel = startLabel,
+        startTag = "start_${routine.id}",
+        onStart = onStart,
+    )
+}
+
+/** A GPS walk or run, in orange like all cardio. */
+@Composable
+private fun RunRow(onStart: () -> Unit) {
+    ListRow(
+        icon = R.drawable.ic_run,
+        iconTint = MaterialTheme.colorScheme.tertiary,
+        iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+        title = stringResource(R.string.workouts_run_title),
+        subtitle = stringResource(R.string.workouts_run_message),
+        startLabel = stringResource(R.string.workouts_run_start),
+        startTag = "start_run",
+        onStart = onStart,
+    )
+}
+
+@Composable
+private fun ListRow(
+    icon: Int,
+    iconTint: Color,
+    iconContainer: Color,
+    title: String,
+    subtitle: String,
+    startLabel: String,
+    startTag: String,
+    onStart: () -> Unit,
+) {
+    VoltCard(contentPadding = 14.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            IconTile(icon = icon, tint = iconTint, container = iconContainer)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FilledTonalButton(
+                onClick = onStart,
+                // TalkBack says "Start Upper body" instead of just "Start".
+                modifier = Modifier
+                    .semantics { contentDescription = startLabel }
+                    .testTag(startTag),
+            ) {
+                Text(stringResource(R.string.workouts_start))
             }
         }
     }
@@ -340,28 +507,34 @@ private fun RunCard(onStart: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun SectionLabel(@StringRes text: Int) {
-    Text(
+    Overline(
         text = stringResource(text),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
-            .padding(top = 8.dp)
+            .padding(top = 4.dp)
             .semantics { heading() },
     )
 }
 
-@Preview(showBackground = true, heightDp = 900)
+@Preview(showBackground = true, heightDp = 1100)
 @Composable
 private fun WorkoutsScreenPreview() {
     val plan = StarterPlan.suggest(FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)
+    val routines = StarterRoutines.forPlan(plan.type)
+    val now = LocalDate.parse("2026-11-18").atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+    val day = 24 * 60 * 60_000L
     RepTrackTheme {
         WorkoutsScreen(
             state = WorkoutsUiState(
                 isLoading = false,
-                profile = UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM),
+                profile = UserProfile(178f, 82.4f, 78f, FitnessGoal.LOSE_WEIGHT, TrainingPlace.GYM),
                 place = TrainingPlace.GYM,
                 plan = plan,
-                routines = StarterRoutines.forPlan(plan.type),
+                routines = routines,
+                nextRoutine = routines.last(),
+                week = WeekActivity.thisWeek(listOf(now - 2 * day), listOf(now - day), now, ZoneOffset.UTC),
+                streakDays = 2,
+                workoutsThisWeek = 1,
+                goalProgress = 0.33f,
             ),
             onPlaceSelected = {},
             onStartWorkout = {},
