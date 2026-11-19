@@ -52,6 +52,8 @@ data class RunUiState(
     /** Saving failed. The run is still being recorded, so Finish can be tried again. */
     val saveFailed: Boolean = false,
     val outcome: RunOutcome? = null,
+    /** The saved run's id once [outcome] is SAVED, so the app can open it on its map. */
+    val savedRunId: Long? = null,
 ) {
     /** Like a workout needs one set, a run needs a little distance before it can be saved. */
     val canFinish: Boolean get() = isRunning && !isSaving && distanceM >= MIN_SAVE_DISTANCE_M
@@ -82,6 +84,7 @@ class RunViewModel(
         val isSaving: Boolean = false,
         val saveFailed: Boolean = false,
         val outcome: RunOutcome? = null,
+        val savedRunId: Long? = null,
     )
 
     private val local = MutableStateFlow(LocalState())
@@ -125,15 +128,15 @@ class RunViewModel(
         if (granted) start(approximateOnly) else local.update { it.copy(permissionDenied = true) }
     }
 
-    /** Saves the run to history. Does nothing until the run has some distance. */
+    /** Saves the run and its route to history. Does nothing until the run has some distance. */
     fun finish() {
         if (!uiState.value.canFinish) return
         val run = recorder.active.value ?: return
         val summary = run.toSummary(finishedAt = now(), weightKg = weightKg.value ?: DEFAULT_WEIGHT_KG)
         local.update { it.copy(isSaving = true, saveFailed = false) }
         viewModelScope.launch {
-            try {
-                runs.saveRun(summary)
+            val id = try {
+                runs.saveRun(summary, run.progress.route)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -143,7 +146,7 @@ class RunViewModel(
                 return@launch
             }
             recorder.stop()
-            local.update { it.copy(isSaving = false, outcome = RunOutcome.SAVED) }
+            local.update { it.copy(isSaving = false, outcome = RunOutcome.SAVED, savedRunId = id) }
         }
     }
 
@@ -184,6 +187,7 @@ class RunViewModel(
             isSaving = state.isSaving,
             saveFailed = state.saveFailed,
             outcome = state.outcome,
+            savedRunId = state.savedRunId,
         )
     }
 

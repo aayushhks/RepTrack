@@ -78,7 +78,8 @@ import edu.bu.reptrack.ui.theme.statStyle
  */
 @Composable
 fun RunRoute(
-    onFinished: () -> Unit,
+    /** Gets the saved run's id, to open it on its map. */
+    onFinished: (runId: Long?) -> Unit,
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RunViewModel = viewModel(factory = RunViewModel.Factory),
@@ -99,7 +100,7 @@ fun RunRoute(
 
     LaunchedEffect(state.outcome) {
         when (state.outcome) {
-            RunOutcome.SAVED -> onFinished()
+            RunOutcome.SAVED -> onFinished(state.savedRunId)
             RunOutcome.DISCARDED -> onLeave()
             null -> Unit
         }

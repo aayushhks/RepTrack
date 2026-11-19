@@ -4,11 +4,14 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.bu.reptrack.data.db.RepTrackDatabase
+import edu.bu.reptrack.domain.run.RoutePoint
+import edu.bu.reptrack.domain.run.RunMath
 import edu.bu.reptrack.domain.run.RunSummary
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -67,5 +70,27 @@ class RoomRunRepositoryTest {
 
         val distances = repository.observeRuns().first().map { it.distanceM }
         assertEquals(listOf(3_000.0, 2_000.0, 1_000.0), distances)
+    }
+
+    @Test
+    fun savedRoute_comesBackWithTheRun_withinAMeter() = runTest {
+        val route = (0 until 300).map { RoutePoint(42.35 + it * 0.00004, -71.10 + it * 0.00002) }
+        val id = repository.saveRun(run(finishedAt = 1_000_000, distanceM = 1_500.0), route)
+
+        val detail = repository.observeRun(id).first()!!
+        assertEquals(1_500.0, detail.summary.distanceM, 0.0)
+        assertEquals(route.size, detail.route.size)
+        route.zip(detail.route).forEach { (saved, read) -> assertTrue(RunMath.distanceM(saved, read) < 1.0) }
+    }
+
+    @Test
+    fun runWithoutRoute_hasAnEmptyRoute() = runTest {
+        val id = repository.saveRun(run(finishedAt = 1_000_000, distanceM = 800.0))
+        assertTrue(repository.observeRun(id).first()!!.route.isEmpty())
+    }
+
+    @Test
+    fun unknownRun_isNull() = runTest {
+        assertNull(repository.observeRun(404).first())
     }
 }

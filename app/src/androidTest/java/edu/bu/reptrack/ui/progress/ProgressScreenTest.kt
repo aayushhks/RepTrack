@@ -35,6 +35,7 @@ class ProgressScreenTest {
     private var deleteAsked: WeightEntry? = null
     private var deleteConfirmed = false
     private var retried = false
+    private var openedRun: Long? = null
 
     private fun show(state: ProgressUiState) {
         composeRule.setContent {
@@ -51,6 +52,7 @@ class ProgressScreenTest {
                     onDismissDelete = {},
                     onRetry = { retried = true },
                     onDismissMessage = {},
+                    onOpenRun = { openedRun = it },
                 )
             }
         }
@@ -97,7 +99,17 @@ class ProgressScreenTest {
 
         composeRule.onNodeWithText("Run").assertIsDisplayed()
         composeRule.onNodeWithText("26:00").assertIsDisplayed()
-        composeRule.onNodeWithTag("run_stats_4").assertTextEquals("5.02 km, 5:11 /km pace, 410 kcal")
+        composeRule.onNodeWithTag("run_stats_4", useUnmergedTree = true).assertTextEquals("5.02 km, 5:11 /km pace, 410 kcal")
+    }
+
+    @Test
+    fun tappingARun_opensItOnItsMap() {
+        val run = RunSummary(id = 4, startedAt = 0, finishedAt = 26 * 60_000L, distanceM = 5_020.0, durationMs = 26 * 60_000L, calories = 410)
+        show(ProgressUiState(isLoading = false, items = listOf(HistoryItem.Run(run))))
+
+        composeRule.onNodeWithTag("run_4").performClick()
+
+        assertEquals(4L, openedRun)
     }
 
     @Test

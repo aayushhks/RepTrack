@@ -8,6 +8,8 @@ data class RunProgress(
     val distanceM: Double = 0.0,
     /** The last fix that was kept. Null until the first good fix arrives. */
     val lastPoint: GeoPoint? = null,
+    /** Every kept fix in order: the line drawn on the map once the run is saved. */
+    val route: List<RoutePoint> = emptyList(),
 ) {
     /** True once at least one good fix has arrived. */
     val hasFix: Boolean get() = lastPoint != null
@@ -15,7 +17,7 @@ data class RunProgress(
     fun add(point: GeoPoint): RunProgress {
         // A fuzzy fix (for example indoors or with approximate location) would add made-up meters.
         if (point.accuracyM > MAX_ACCURACY_M) return this
-        val last = lastPoint ?: return copy(lastPoint = point)
+        val last = lastPoint ?: return copy(lastPoint = point, route = listOf(point.toRoutePoint()))
 
         val seconds = (point.timeMillis - last.timeMillis) / 1000.0
         if (seconds <= 0) return this
@@ -24,11 +26,16 @@ data class RunProgress(
         // Faster than a sprinter: the GPS jumped, not the runner. Add nothing, but start again
         // from the new fix. Otherwise one bad old fix (like the phone's last place from hours ago)
         // would make every later fix look like a jump, and the distance would stay at 0.
-        if (meters / seconds > MAX_SPEED_MPS) return copy(lastPoint = point)
+        // Before any distance, that old fix is dropped from the route too, so the map does not
+        // draw a line from wherever the phone was hours ago.
+        if (meters / seconds > MAX_SPEED_MPS) {
+            val route = if (distanceM == 0.0) listOf(point.toRoutePoint()) else route + point.toRoutePoint()
+            return copy(lastPoint = point, route = route)
+        }
         // Standing still, GPS drifts a few meters. Keep the old fix so the drift never adds up.
         if (meters < MIN_STEP_M) return this
 
-        return RunProgress(distanceM = distanceM + meters, lastPoint = point)
+        return RunProgress(distanceM = distanceM + meters, lastPoint = point, route = route + point.toRoutePoint())
     }
 
     companion object {

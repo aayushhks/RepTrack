@@ -52,7 +52,9 @@ import edu.bu.reptrack.ui.profile.ProfileRoute
 import edu.bu.reptrack.ui.progress.ProgressRoute
 import edu.bu.reptrack.ui.session.WorkoutSessionRoute
 import edu.bu.reptrack.ui.setup.GoalSetupRoute
+import edu.bu.reptrack.ui.run.RunDetailRoute
 import edu.bu.reptrack.ui.run.RunRoute
+import edu.bu.reptrack.ui.run.story.RunStoryRoute
 import edu.bu.reptrack.ui.workouts.WorkoutsRoute
 
 /** App root: waits for the saved sign-in and profile state, then opens on sign in, goal setup or the tabs. */
@@ -86,7 +88,7 @@ private fun FirstScreen.route(): String = when (this) {
 }
 
 /** Screens that take the whole screen, so the bottom bar is hidden on them. */
-private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION, Routes.RUN)
+private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION, Routes.RUN, Routes.RUN_STORY)
 
 /**
  * Switches tabs the way the bottom bar does. Android's rule: Workouts home is always at the
@@ -253,10 +255,12 @@ fun RepTrackNavHost(
                         popExitTransition = { slideOutToRight() },
                     ) {
                         RunRoute(
-                            onFinished = {
-                                // Close the run, then show it on the Progress tab.
+                            onFinished = { runId ->
+                                // Close the run, then show it on its map in the Progress tab, like
+                                // Strava does, so it can be shared right away. Back goes to the history.
                                 navController.popBackStack()
                                 navController.navigateToTab(TopLevelDestination.PROGRESS)
+                                if (runId != null) navController.navigate(Routes.runDetail(runId))
                             },
                             onLeave = { navController.popBackStack() },
                         )
@@ -281,8 +285,36 @@ fun RepTrackNavHost(
                     }
                 }
                 composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
-                composable(TopLevelDestination.PROGRESS.route) {
-                    ProgressRoute(onStartWorkout = { navController.navigateToTab(TopLevelDestination.WORKOUTS) })
+                // The Progress tab is a nested graph too: the history, then a saved run on its map,
+                // then its story picture. Each opens on top, so Back walks back through them.
+                navigation(startDestination = Routes.PROGRESS_HOME, route = TopLevelDestination.PROGRESS.route) {
+                    composable(Routes.PROGRESS_HOME) {
+                        ProgressRoute(
+                            onStartWorkout = { navController.navigateToTab(TopLevelDestination.WORKOUTS) },
+                            onOpenRun = { runId -> navController.navigate(Routes.runDetail(runId)) },
+                        )
+                    }
+                    composable(
+                        route = Routes.RUN_DETAIL,
+                        arguments = listOf(navArgument(Routes.ARG_RUN_ID) { type = NavType.LongType }),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) { entry ->
+                        // The run id also reaches the ViewModel, through its SavedStateHandle.
+                        val runId = entry.arguments?.getLong(Routes.ARG_RUN_ID) ?: 0L
+                        RunDetailRoute(
+                            onBack = { navController.popBackStack() },
+                            onShare = { navController.navigate(Routes.runStory(runId)) { launchSingleTop = true } },
+                        )
+                    }
+                    composable(
+                        route = Routes.RUN_STORY,
+                        arguments = listOf(navArgument(Routes.ARG_RUN_ID) { type = NavType.LongType }),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        RunStoryRoute(onClose = { navController.popBackStack() })
+                    }
                 }
                 composable(TopLevelDestination.PROFILE.route) {
                     ProfileRoute(

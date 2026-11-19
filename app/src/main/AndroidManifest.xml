@@ -14,6 +14,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Lets the app see whether Instagram is installed, to offer "Instagram story". Since
+         Android 11, apps only see the other apps they name here. -->
+    <queries>
+        <package android:name="com.instagram.android" />
+    </queries>
+
     <!-- allowBackup is off so workout data and run routes are not copied to cloud backups.
          enableOnBackInvokedCallback turns on predictive back (the swipe-back preview) on Android 13 to 15.
          Android 16 and newer have it on already. -->
@@ -42,6 +48,18 @@
             android:name=".service.RunTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- Hands story pictures to Instagram and other apps as content:// links. Only the
+             folder in res/xml/share_paths.xml is shared, and only when the user shares. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
     </application>
 
 </manifest>

@@ -2,7 +2,7 @@ package edu.bu.reptrack.domain.run
 
 import java.util.Locale
 
-/** A finished walk or run. Only the totals are kept; the route never leaves the phone. */
+/** A finished walk or run: its totals. The route is saved next to it, on the phone only (see [RunDetail]). */
 data class RunSummary(
     val id: Long = 0,
     val startedAt: Long,
