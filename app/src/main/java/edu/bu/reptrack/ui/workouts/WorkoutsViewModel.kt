@@ -26,6 +26,7 @@ import edu.bu.reptrack.domain.workout.startOfWeekMillis
 import java.time.ZoneId
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
@@ -71,9 +72,11 @@ class WorkoutsViewModel(
     val uiState: StateFlow<WorkoutsUiState> = combine(
         profileRepository.profile,
         chosenPlace,
-        workouts.observeHistory(),
-        runs.observeRuns(),
-        weights.observeWeights(),
+        // If history can not be read, the plan and routines still show; only the streak,
+        // week strip and goal ring are left empty.
+        workouts.observeHistory().catch { emit(emptyList()) },
+        runs.observeRuns().catch { emit(emptyList()) },
+        weights.observeWeights().catch { emit(emptyList()) },
     ) { profile, placeName, history, runList, weightList ->
         // A place picked on this screen wins over the one saved in the profile.
         val place = placeName?.let { TrainingPlace.valueOf(it) } ?: profile?.place ?: TrainingPlace.GYM

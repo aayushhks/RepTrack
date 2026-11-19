@@ -34,6 +34,7 @@ class ProgressScreenTest {
     private var saveClicked = false
     private var deleteAsked: WeightEntry? = null
     private var deleteConfirmed = false
+    private var retried = false
 
     private fun show(state: ProgressUiState) {
         composeRule.setContent {
@@ -48,6 +49,8 @@ class ProgressScreenTest {
                     onDeleteWeight = { deleteAsked = it },
                     onConfirmDelete = { deleteConfirmed = true },
                     onDismissDelete = {},
+                    onRetry = { retried = true },
+                    onDismissMessage = {},
                 )
             }
         }
@@ -172,5 +175,22 @@ class ProgressScreenTest {
 
         composeRule.onNodeWithText("12.40 km").assertIsDisplayed()
         composeRule.onNodeWithText("1240 kcal").assertIsDisplayed()
+    }
+
+    @Test
+    fun loadFailure_saysWhat_andOffersTryAgain() {
+        show(ProgressUiState(isLoading = false, loadFailed = true))
+
+        composeRule.onNodeWithText("Your history could not be loaded", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Try again").performClick()
+
+        assertTrue(retried)
+    }
+
+    @Test
+    fun failedSave_isShownAboveTheWeightCard() {
+        show(ProgressUiState(isLoading = false, message = ProgressMessage.WEIGHT_NOT_SAVED))
+
+        composeRule.onNodeWithText("Your weight was not saved. Please log it again.").assertIsDisplayed()
     }
 }

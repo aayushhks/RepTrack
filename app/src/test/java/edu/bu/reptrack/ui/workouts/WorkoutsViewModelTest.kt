@@ -173,4 +173,17 @@ class WorkoutsViewModelTest {
 
         assertNull(viewModel.uiState.value.goalProgress)
     }
+
+    @Test
+    fun weightLogReadFailure_stillShowsThePlan() = runTest {
+        repository.saveProfile(muscleAtGym)
+        weights.failReads = true
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isLoading)
+        assertEquals(PlanType.UPPER_LOWER, state.plan.type)
+        assertNull(state.goalProgress)
+    }
 }

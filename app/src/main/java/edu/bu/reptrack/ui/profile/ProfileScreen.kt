@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -53,6 +54,7 @@ import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.settings.ThemeMode
 import edu.bu.reptrack.ui.components.Overline
+import edu.bu.reptrack.ui.components.readableWidth
 import edu.bu.reptrack.ui.components.labelRes
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import edu.bu.reptrack.ui.theme.statStyle
@@ -125,6 +127,7 @@ fun ProfileScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .readableWidth()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 24.dp)
             .testTag("screen_profile"),
@@ -200,7 +203,9 @@ private fun ThemePicker(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
                     inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
                 ),
                 icon = {},
-                modifier = Modifier.testTag("theme_${mode.name.lowercase()}"),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("theme_${mode.name.lowercase()}"),
             ) {
                 Text(stringResource(label))
             }

@@ -17,6 +17,7 @@ import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.exercisesToShow
 import edu.bu.reptrack.domain.workout.totalVolumeKg
 import edu.bu.reptrack.ui.navigation.Routes
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +33,9 @@ import kotlinx.coroutines.sync.withLock
 
 /** How the session ended, so the screen knows where to go next. */
 enum class SessionOutcome { FINISHED, DISCARDED }
+
+/** A save that did not go through. The screen says so instead of the app crashing. */
+enum class SessionError { SET_NOT_SAVED, CHANGE_NOT_SAVED, FINISH_FAILED }
 
 /** One exercise card: its logged sets and what is typed in its boxes right now. */
 data class ExerciseUi(
@@ -69,6 +73,8 @@ data class WorkoutSessionUiState(
     val outcome: SessionOutcome? = null,
     /** Null when no rest is running. */
     val rest: RestTimerUi? = null,
+    /** The last save that failed, until the user dismisses it or a save works. */
+    val error: SessionError? = null,
 ) {
     val canFinish: Boolean get() = setCount > 0
 }
@@ -107,6 +113,7 @@ class WorkoutSessionViewModel(
         val editing: EditSetUi? = null,
         val showLeaveDialog: Boolean = false,
         val outcome: SessionOutcome? = null,
+        val error: SessionError? = null,
     )
 
     private val local = MutableStateFlow(LocalState())
@@ -149,7 +156,8 @@ class WorkoutSessionViewModel(
             }
             return
         }
-        viewModelScope.launch {
+        // If it fails, the typed values are still in the boxes, so trying again is one tap.
+        write(SessionError.SET_NOT_SAVED) {
             val id = ensureSession()
             repository.addSet(id, exercise, parsed.weightKg, parsed.reps)
             startRest()
@@ -186,13 +194,13 @@ class WorkoutSessionViewModel(
         }
         // Close the dialog right away so a second tap cannot save twice.
         local.update { it.copy(editing = null) }
-        viewModelScope.launch { repository.updateSet(editing.set.id, parsed.weightKg, parsed.reps) }
+        write(SessionError.CHANGE_NOT_SAVED) { repository.updateSet(editing.set.id, parsed.weightKg, parsed.reps) }
     }
 
     fun deleteEditingSet() {
         val editing = local.value.editing ?: return
         local.update { it.copy(editing = null) }
-        viewModelScope.launch { repository.deleteSet(editing.set.id) }
+        write(SessionError.CHANGE_NOT_SAVED) { repository.deleteSet(editing.set.id) }
     }
 
     fun dismissEdit() {
@@ -231,9 +239,30 @@ class WorkoutSessionViewModel(
     fun finish() {
         val id = sessionId.value ?: return
         if (sets.value.isEmpty()) return
-        viewModelScope.launch {
+        write(SessionError.FINISH_FAILED) {
             repository.finishSession(id)
             local.update { it.copy(outcome = SessionOutcome.FINISHED) }
+        }
+    }
+
+    fun dismissError() {
+        local.update { it.copy(error = null) }
+    }
+
+    /**
+     * Runs a save. If the database throws (for example the phone is out of storage), the
+     * screen shows [error] instead of the app crashing, and everything logged so far stays.
+     */
+    private fun write(error: SessionError, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+                local.update { if (it.error == error) it.copy(error = null) else it }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                local.update { it.copy(error = error) }
+            }
         }
     }
 
@@ -293,6 +322,7 @@ class WorkoutSessionViewModel(
             editing = local.editing,
             showLeaveDialog = local.showLeaveDialog,
             outcome = local.outcome,
+            error = local.error,
         )
     }
 

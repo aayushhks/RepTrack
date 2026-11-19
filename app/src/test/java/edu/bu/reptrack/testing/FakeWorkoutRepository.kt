@@ -39,7 +39,11 @@ class FakeWorkoutRepository(
     override fun observeSets(sessionId: Long): Flow<List<LoggedSet>> =
         sets.map { list -> list.filter { it.sessionId == sessionId }.sortedWith(compareBy({ it.loggedAt }, { it.id })) }
 
+    /** Makes saving sets and finishing throw, like a full disk, to test the error states. */
+    var failWrites = false
+
     override suspend fun addSet(sessionId: Long, exerciseName: String, weightKg: Float, reps: Int): Long {
+        if (failWrites) throw java.io.IOException("disk full")
         val id = nextSetId++
         val number = sets.value.count { it.sessionId == sessionId && it.exerciseName == exerciseName } + 1
         sets.value = sets.value + LoggedSet(id, sessionId, exerciseName, number, weightKg, reps, loggedAt = now())
@@ -62,6 +66,7 @@ class FakeWorkoutRepository(
     }
 
     override suspend fun finishSession(sessionId: Long) {
+        if (failWrites) throw java.io.IOException("disk full")
         val session = sessions.value.firstOrNull { it.id == sessionId } ?: return
         if (session.finishedAt != null) return
         if (sets.value.none { it.sessionId == sessionId }) {

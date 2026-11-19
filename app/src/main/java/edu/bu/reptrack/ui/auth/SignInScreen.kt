@@ -52,6 +52,7 @@ import edu.bu.reptrack.R
 import edu.bu.reptrack.data.auth.AuthError
 import edu.bu.reptrack.ui.components.IconTile
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import edu.bu.reptrack.ui.components.readableWidth
 import java.util.Locale
 
 /** Connects the sign-in screen to its ViewModel and calls [onFinished] once the user is signed in or skipped. */
@@ -97,6 +98,7 @@ fun SignInScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .readableWidth()
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 32.dp)

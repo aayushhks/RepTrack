@@ -52,6 +52,7 @@ import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.ui.components.labelRes
 import edu.bu.reptrack.ui.theme.RepTrackTheme
+import edu.bu.reptrack.ui.components.readableWidth
 import java.util.Locale
 
 /** Connects the setup screen to its ViewModel and calls [onFinished] once setup is saved or skipped. */
@@ -99,6 +100,7 @@ fun GoalSetupScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .readableWidth()
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 32.dp)
@@ -178,6 +180,7 @@ fun GoalSetupScreen(
                     selected = state.place == place,
                     onClick = { onPlaceSelected(place) },
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = TrainingPlace.entries.size),
+                    modifier = Modifier.heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(place.labelRes()))
                 }

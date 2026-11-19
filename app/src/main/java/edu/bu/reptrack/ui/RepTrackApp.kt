@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,14 +17,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
@@ -111,17 +119,22 @@ fun RepTrackNavHost(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val currentRoute = currentDestination?.route ?: startRoute
-    val showBottomBar = currentRoute !in fullScreenRoutes
+    val showTabs = currentRoute !in fullScreenRoutes
+    // Material's breakpoint: from 600 dp wide (tablets, foldables, phones in landscape) the tabs
+    // move to a rail on the left, so they do not stretch across a wide screen.
+    val useRail = LocalConfiguration.current.screenWidthDp >= RAIL_MIN_WIDTH_DP
+    val isSelected = { destination: TopLevelDestination ->
+        currentDestination?.hierarchy?.any { it.route == destination.route } == true
+    }
 
     Scaffold(
         modifier = modifier,
         bottomBar = {
-            if (showBottomBar) {
-                NavigationBar {
+            if (showTabs && !useRail) {
+                NavigationBar(modifier = Modifier.testTag("nav_bar")) {
                     TopLevelDestination.entries.forEach { destination ->
-                        val selected = currentDestination?.hierarchy?.any { it.route == destination.route } == true
                         NavigationBarItem(
-                            selected = selected,
+                            selected = isSelected(destination),
                             onClick = { navController.navigateToTab(destination) },
                             icon = {
                                 // The label below already names the tab, so the icon is decorative.
@@ -142,122 +155,155 @@ fun RepTrackNavHost(
             }
         },
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startRoute,
+        Row(
             // consumeWindowInsets stops screens that use imePadding from adding the bar height twice.
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
-            // Material "fade through" between tabs: quick fade out, then fade in. The default is a slow
-            // 700 ms crossfade that feels like a web page loading.
-            enterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
-            exitTransition = { fadeOut(tween(durationMillis = 90)) },
-            popEnterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
-            popExitTransition = { fadeOut(tween(durationMillis = 90)) },
         ) {
-            composable(Routes.SIGN_IN) {
-                SignInRoute(
-                    onFinished = {
-                        if (navController.previousBackStackEntry != null) {
-                            // Opened from the Profile tab, so just go back to it.
-                            navController.popBackStack()
-                        } else {
-                            // First launch or after signing out: go on to goal setup (or the tabs if setup
-                            // is already done) and remove sign in so Back does not return to it.
-                            val next = if (isSetupDone) TopLevelDestination.START.route else Routes.GOAL_SETUP
-                            navController.navigate(next) {
-                                popUpTo(Routes.SIGN_IN) { inclusive = true }
-                            }
-                        }
-                    },
-                )
+            if (showTabs && useRail) {
+                NavigationRail(
+                    modifier = Modifier.testTag("nav_rail"),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    // Centered vertically, so the tabs sit where a thumb reaches on a tablet.
+                    Spacer(Modifier.weight(1f))
+                    TopLevelDestination.entries.forEach { destination ->
+                        NavigationRailItem(
+                            selected = isSelected(destination),
+                            onClick = { navController.navigateToTab(destination) },
+                            icon = { Icon(painterResource(destination.iconRes), contentDescription = null) },
+                            label = { Text(stringResource(destination.labelRes)) },
+                            colors = NavigationRailItemDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                }
             }
-
-            composable(
-                route = Routes.GOAL_SETUP,
-                enterTransition = { slideInFromRight() },
-                popExitTransition = { slideOutToRight() },
+            NavHost(
+                navController = navController,
+                startDestination = startRoute,
+                modifier = Modifier.weight(1f),
+                // Material "fade through" between tabs: quick fade out, then fade in. The default is a slow
+                // 700 ms crossfade that feels like a web page loading.
+                enterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
+                exitTransition = { fadeOut(tween(durationMillis = 90)) },
+                popEnterTransition = { fadeIn(tween(durationMillis = 210, delayMillis = 90)) },
+                popExitTransition = { fadeOut(tween(durationMillis = 90)) },
             ) {
-                GoalSetupRoute(
-                    onFinished = {
-                        if (navController.previousBackStackEntry != null) {
-                            // Opened from the Workouts or Profile tab, so just go back to it.
-                            navController.popBackStack()
-                        } else {
-                            // First launch: open the tabs, and remove setup so Back does not return to it.
-                            navController.navigate(TopLevelDestination.START.route) {
-                                popUpTo(Routes.GOAL_SETUP) { inclusive = true }
+                composable(Routes.SIGN_IN) {
+                    SignInRoute(
+                        onFinished = {
+                            if (navController.previousBackStackEntry != null) {
+                                // Opened from the Profile tab, so just go back to it.
+                                navController.popBackStack()
+                            } else {
+                                // First launch or after signing out: go on to goal setup (or the tabs if setup
+                                // is already done) and remove sign in so Back does not return to it.
+                                val next = if (isSetupDone) TopLevelDestination.START.route else Routes.GOAL_SETUP
+                                navController.navigate(next) {
+                                    popUpTo(Routes.SIGN_IN) { inclusive = true }
+                                }
                             }
-                        }
-                    },
-                )
-            }
+                        },
+                    )
+                }
 
-            // The Workouts tab is a nested graph: Workouts home, then a workout session on top.
-            navigation(startDestination = Routes.WORKOUTS_HOME, route = TopLevelDestination.WORKOUTS.route) {
-                composable(Routes.WORKOUTS_HOME) {
-                    WorkoutsRoute(
-                        onStartWorkout = { routineId -> navController.navigate(Routes.workoutSession(routineId)) },
-                        onStartRun = { navController.navigate(Routes.RUN) { launchSingleTop = true } },
-                        onSetUpPlan = { navController.navigate(Routes.GOAL_SETUP) },
-                    )
-                }
-                // A walk or run, full screen like a workout. The recording itself outlives this
-                // screen, so leaving it by mistake asks first instead of losing the run.
                 composable(
-                    route = Routes.RUN,
+                    route = Routes.GOAL_SETUP,
                     enterTransition = { slideInFromRight() },
                     popExitTransition = { slideOutToRight() },
                 ) {
-                    RunRoute(
+                    GoalSetupRoute(
                         onFinished = {
-                            // Close the run, then show it on the Progress tab.
-                            navController.popBackStack()
-                            navController.navigateToTab(TopLevelDestination.PROGRESS)
+                            if (navController.previousBackStackEntry != null) {
+                                // Opened from the Workouts or Profile tab, so just go back to it.
+                                navController.popBackStack()
+                            } else {
+                                // First launch: open the tabs, and remove setup so Back does not return to it.
+                                navController.navigate(TopLevelDestination.START.route) {
+                                    popUpTo(Routes.GOAL_SETUP) { inclusive = true }
+                                }
+                            }
                         },
-                        onLeave = { navController.popBackStack() },
                     )
                 }
-                // A workout slides in from the right. With predictive back, it follows your finger
-                // when you swipe back, like other Android apps.
-                composable(
-                    route = Routes.WORKOUT_SESSION,
-                    arguments = listOf(navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType }),
-                    enterTransition = { slideInFromRight() },
-                    popExitTransition = { slideOutToRight() },
-                ) {
-                    // The routine id reaches the ViewModel through its SavedStateHandle.
-                    WorkoutSessionRoute(
-                        onFinished = {
-                            // Close the session, then show the saved workout on the Progress tab.
-                            navController.popBackStack()
-                            navController.navigateToTab(TopLevelDestination.PROGRESS)
+
+                // The Workouts tab is a nested graph: Workouts home, then a workout session on top.
+                navigation(startDestination = Routes.WORKOUTS_HOME, route = TopLevelDestination.WORKOUTS.route) {
+                    composable(Routes.WORKOUTS_HOME) {
+                        WorkoutsRoute(
+                            onStartWorkout = { routineId -> navController.navigate(Routes.workoutSession(routineId)) },
+                            onStartRun = { navController.navigate(Routes.RUN) { launchSingleTop = true } },
+                            onSetUpPlan = { navController.navigate(Routes.GOAL_SETUP) },
+                        )
+                    }
+                    // A walk or run, full screen like a workout. The recording itself outlives this
+                    // screen, so leaving it by mistake asks first instead of losing the run.
+                    composable(
+                        route = Routes.RUN,
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        RunRoute(
+                            onFinished = {
+                                // Close the run, then show it on the Progress tab.
+                                navController.popBackStack()
+                                navController.navigateToTab(TopLevelDestination.PROGRESS)
+                            },
+                            onLeave = { navController.popBackStack() },
+                        )
+                    }
+                    // A workout slides in from the right. With predictive back, it follows your finger
+                    // when you swipe back, like other Android apps.
+                    composable(
+                        route = Routes.WORKOUT_SESSION,
+                        arguments = listOf(navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType }),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        // The routine id reaches the ViewModel through its SavedStateHandle.
+                        WorkoutSessionRoute(
+                            onFinished = {
+                                // Close the session, then show the saved workout on the Progress tab.
+                                navController.popBackStack()
+                                navController.navigateToTab(TopLevelDestination.PROGRESS)
+                            },
+                            onLeave = { navController.popBackStack() },
+                        )
+                    }
+                }
+                composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
+                composable(TopLevelDestination.PROGRESS.route) {
+                    ProgressRoute(onStartWorkout = { navController.navigateToTab(TopLevelDestination.WORKOUTS) })
+                }
+                composable(TopLevelDestination.PROFILE.route) {
+                    ProfileRoute(
+                        // Goal setup opens with the saved stats filled in, so it works as an edit screen.
+                        onEditStats = { navController.navigate(Routes.GOAL_SETUP) },
+                        onSignIn = { navController.navigate(Routes.SIGN_IN) },
+                        onSignedOut = {
+                            // Clear everything, so Back from sign in leaves the app instead of showing the tabs.
+                            navController.navigate(Routes.SIGN_IN) {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                            }
                         },
-                        onLeave = { navController.popBackStack() },
                     )
                 }
-            }
-            composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
-            composable(TopLevelDestination.PROGRESS.route) {
-                ProgressRoute(onStartWorkout = { navController.navigateToTab(TopLevelDestination.WORKOUTS) })
-            }
-            composable(TopLevelDestination.PROFILE.route) {
-                ProfileRoute(
-                    // Goal setup opens with the saved stats filled in, so it works as an edit screen.
-                    onEditStats = { navController.navigate(Routes.GOAL_SETUP) },
-                    onSignIn = { navController.navigate(Routes.SIGN_IN) },
-                    onSignedOut = {
-                        // Clear everything, so Back from sign in leaves the app instead of showing the tabs.
-                        navController.navigate(Routes.SIGN_IN) {
-                            popUpTo(navController.graph.id) { inclusive = true }
-                        }
-                    },
-                )
             }
         }
     }
 }
+
+/** From this width the tabs move from the bottom bar to a side rail (Material's medium window size). */
+private const val RAIL_MIN_WIDTH_DP = 600
 
 private const val SLIDE_MILLIS = 300
 

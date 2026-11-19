@@ -20,11 +20,15 @@ import edu.bu.reptrack.domain.weight.WeightTrend
 import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.startOfWeekMillis
 import java.time.ZoneId
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -81,6 +85,9 @@ data class WeekTotals(
     val calories: Int = 0,
 )
 
+/** A weigh-in change that did not go through. */
+enum class ProgressMessage { WEIGHT_NOT_SAVED, WEIGHT_NOT_DELETED }
+
 /** Everything the Progress tab needs to draw itself. */
 data class ProgressUiState(
     val isLoading: Boolean = true,
@@ -93,6 +100,10 @@ data class ProgressUiState(
     val logDialog: LogWeightDialog? = null,
     /** The weigh-in the user asked to delete, waiting for them to confirm. */
     val pendingDelete: WeightEntry? = null,
+    /** History or weigh-ins could not be read. The screen offers Try again. */
+    val loadFailed: Boolean = false,
+    /** A save or delete that failed, until the user dismisses it. */
+    val message: ProgressMessage? = null,
 )
 
 /** Workouts and runs in one list, newest first. Plain Kotlin so it is easy to test. */
@@ -135,6 +146,7 @@ const val RECENT_COUNT = 3
  * Progress tab: the weight log with its trend toward the goal, then the history of workouts
  * and runs. Room's Flows mean anything saved on another screen shows up here by itself.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ProgressViewModel(
     workouts: WorkoutRepository,
     runs: RunRepository,
@@ -147,26 +159,33 @@ class ProgressViewModel(
     private data class LocalState(
         val logDialog: LogWeightDialog? = null,
         val pendingDelete: WeightEntry? = null,
+        val message: ProgressMessage? = null,
     )
 
     private val local = MutableStateFlow(LocalState())
 
-    val uiState: StateFlow<ProgressUiState> = combine(
-        workouts.observeHistory(),
-        runs.observeRuns(),
-        weights.observeWeights(),
-        profiles.profile,
-        local,
-    ) { history, runList, weightList, profile, local ->
-        val items = mergeHistory(history, runList)
-        ProgressUiState(
-            isLoading = false,
-            items = items,
-            week = weekTotals(items, startOfWeekMillis(now(), zone)),
-            weight = summarizeWeights(weightList, profile?.goalWeightKg),
-            logDialog = local.logDialog,
-            pendingDelete = local.pendingDelete,
-        )
+    /** Bumped by Try again, which starts reading from the database again. */
+    private val attempt = MutableStateFlow(0)
+
+    val uiState: StateFlow<ProgressUiState> = attempt.flatMapLatest {
+        combine(
+            workouts.observeHistory(),
+            runs.observeRuns(),
+            weights.observeWeights(),
+            profiles.profile,
+            local,
+        ) { history, runList, weightList, profile, local ->
+            val items = mergeHistory(history, runList)
+            ProgressUiState(
+                isLoading = false,
+                items = items,
+                week = weekTotals(items, startOfWeekMillis(now(), zone)),
+                weight = summarizeWeights(weightList, profile?.goalWeightKg),
+                logDialog = local.logDialog,
+                pendingDelete = local.pendingDelete,
+                message = local.message,
+            )
+        }.catch { emit(ProgressUiState(isLoading = false, loadFailed = true)) }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -199,7 +218,7 @@ class ProgressViewModel(
         }
         val kg = dialog.input.trim().toFloat()
         local.update { it.copy(logDialog = null) }
-        viewModelScope.launch {
+        write(ProgressMessage.WEIGHT_NOT_SAVED) {
             weights.addWeight(kg, now())
             syncProfileWeight(kg)
         }
@@ -217,10 +236,32 @@ class ProgressViewModel(
     fun confirmDelete() {
         val entry = local.value.pendingDelete ?: return
         local.update { it.copy(pendingDelete = null) }
-        viewModelScope.launch {
+        write(ProgressMessage.WEIGHT_NOT_DELETED) {
             weights.deleteWeight(entry.id)
             // If the newest one went, the one before it is the current weight again.
             weights.latestWeight()?.let { syncProfileWeight(it.weightKg) }
+        }
+    }
+
+    /** Try again after the history could not be read. */
+    fun retry() {
+        attempt.update { it + 1 }
+    }
+
+    fun dismissMessage() {
+        local.update { it.copy(message = null) }
+    }
+
+    /** Runs a save. If it fails, the tab shows [message] instead of the app crashing. */
+    private fun write(message: ProgressMessage, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                local.update { it.copy(message = message) }
+            }
         }
     }
 

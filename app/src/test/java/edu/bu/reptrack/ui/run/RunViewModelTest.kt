@@ -205,4 +205,27 @@ class RunViewModelTest {
         assertTrue(viewModel.uiState.value.locationFailed)
         assertFalse(viewModel.uiState.value.waitingForGps)
     }
+
+    @Test
+    fun saveFailure_keepsRecording_andSaysSo_thenARetryWorks() = runTest {
+        val viewModel = newViewModel()
+        viewModel.start()
+        runMeters(200)
+        runs.failSaves = true
+
+        viewModel.finish()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.saveFailed)
+        assertFalse(state.isSaving)
+        assertTrue(state.isRunning)
+        assertTrue(state.canFinish)
+        assertTrue(tracker.isListening)
+
+        runs.failSaves = false
+        viewModel.finish()
+
+        assertEquals(1, runs.saved.size)
+        assertEquals(RunOutcome.SAVED, viewModel.uiState.value.outcome)
+    }
 }
