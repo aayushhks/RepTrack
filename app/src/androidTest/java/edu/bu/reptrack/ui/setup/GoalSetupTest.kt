@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.bu.reptrack.fakes.FakeProfileRepository
+import edu.bu.reptrack.fakes.FakeWeightRepository
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertEquals
@@ -31,11 +32,12 @@ class GoalSetupTest {
     val composeRule = createComposeRule()
 
     private val repository = FakeProfileRepository()
+    private val weights = FakeWeightRepository()
     private val finished = AtomicBoolean(false)
 
     private fun showSetup() {
         composeRule.setContent {
-            val viewModel = remember { GoalSetupViewModel(repository, SavedStateHandle()) }
+            val viewModel = remember { GoalSetupViewModel(repository, weights, SavedStateHandle()) }
             RepTrackTheme {
                 GoalSetupRoute(onFinished = { finished.set(true) }, viewModel = viewModel)
             }

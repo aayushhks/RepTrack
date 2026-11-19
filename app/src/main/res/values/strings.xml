@@ -103,6 +103,38 @@
     <string name="progress_empty_title">No workouts yet</string>
     <string name="progress_empty_message">Finish a workout or a run and it shows up here with its totals.</string>
     <string name="progress_empty_button">Start a workout</string>
+
+    <!-- Weight log on the Progress tab. weight_change_down example: "2.6 kg down since Sat, Oct 3" -->
+    <string name="weight_title">Weight</string>
+    <string name="weight_log">Log weight</string>
+    <string name="weight_kg">%1$s kg</string>
+    <string name="weight_logged_on">Logged %1$s</string>
+    <string name="weight_change_down">%1$s kg down since %2$s</string>
+    <string name="weight_change_up">%1$s kg up since %2$s</string>
+    <string name="weight_change_none">No change since %1$s</string>
+    <string name="weight_one_entry">Log again on another day to see your trend.</string>
+    <string name="weight_goal_gap">Goal %1$s kg, %2$s</string>
+    <string name="weight_goal_reached">You reached your goal of %1$s kg</string>
+    <string name="weight_goal_percent">%1$d%% of the way</string>
+    <string name="weight_goal_progress_label">Progress to your goal weight</string>
+    <string name="weight_legend_you">Your weight</string>
+    <string name="weight_legend_goal">Goal</string>
+    <string name="weight_chart_description">Weight chart, from %1$s kg on %2$s to %3$s kg on %4$s.</string>
+    <string name="weight_chart_goal_description">Goal line at %1$s kg.</string>
+    <string name="weight_recent">Recent weigh-ins</string>
+    <string name="weight_delete">Delete %1$s kg from %2$s</string>
+    <string name="weight_empty_title">No weigh-ins yet</string>
+    <string name="weight_empty_message">Log your weight every few days to see your trend toward your goal.</string>
+    <string name="weight_dialog_title">Log weight</string>
+    <string name="weight_dialog_label">Weight</string>
+    <string name="weight_dialog_unit">kg</string>
+    <string name="weight_dialog_save">Save</string>
+    <string name="weight_dialog_cancel">Cancel</string>
+    <string name="weight_error_empty">Enter your weight</string>
+    <string name="weight_delete_title">Delete this weigh-in?</string>
+    <string name="weight_delete_message">%1$s kg from %2$s will be removed from your log.</string>
+    <string name="weight_delete_confirm">Delete</string>
+    <string name="weight_delete_cancel">Keep</string>
     <!-- Example: "5 exercises, 15 sets, 4250 kg volume" -->
     <string name="history_stats">%1$s, %2$s, %3$s kg volume</string>
     <string name="history_duration_short">Under 1 min</string>

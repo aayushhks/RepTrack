@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import edu.bu.reptrack.data.run.RunDao
 import edu.bu.reptrack.data.run.RunEntity
+import edu.bu.reptrack.data.weight.WeightDao
+import edu.bu.reptrack.data.weight.WeightEntity
 import edu.bu.reptrack.data.workout.WorkoutDao
 import edu.bu.reptrack.data.workout.WorkoutSessionEntity
 import edu.bu.reptrack.data.workout.WorkoutSetEntity
@@ -15,17 +17,20 @@ import edu.bu.reptrack.data.workout.WorkoutSetEntity
  *
  * Version 2 adds the runs table. It is an automatic migration: Room compares the saved
  * schemas of version 1 and 2 and creates the new table, keeping every saved workout.
+ * Version 3 adds the weights table the same way.
  */
 @Database(
-    entities = [WorkoutSessionEntity::class, WorkoutSetEntity::class, RunEntity::class],
-    version = 2,
+    entities = [WorkoutSessionEntity::class, WorkoutSetEntity::class, RunEntity::class, WeightEntity::class],
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class RepTrackDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
 
     abstract fun runDao(): RunDao
+
+    abstract fun weightDao(): WeightDao
 
     companion object {
         const val FILE_NAME = "reptrack.db"

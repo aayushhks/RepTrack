@@ -13,6 +13,8 @@ import edu.bu.reptrack.data.profile.profileDataStore
 import edu.bu.reptrack.data.run.RoomRunRepository
 import edu.bu.reptrack.data.run.RunRecorder
 import edu.bu.reptrack.data.run.RunRepository
+import edu.bu.reptrack.data.weight.RoomWeightRepository
+import edu.bu.reptrack.data.weight.WeightRepository
 import edu.bu.reptrack.data.workout.RoomWorkoutRepository
 import edu.bu.reptrack.data.workout.WorkoutRepository
 import edu.bu.reptrack.service.AndroidRunServiceController
@@ -40,6 +42,8 @@ class AppContainer(context: Context) {
     val authRepository: AuthRepository = FirebaseAuthRepository(FirebaseAuth.getInstance())
 
     val runRepository: RunRepository = RoomRunRepository(database.runDao())
+
+    val weightRepository: WeightRepository = RoomWeightRepository(database.weightDao())
 
     // One recorder for the whole app, in a scope that lives as long as the app, so a run keeps
     // going when the run screen is closed or the phone is rotated.

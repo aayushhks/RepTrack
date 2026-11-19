@@ -14,6 +14,11 @@ class HistoryFormatTest {
     }
 
     @Test
+    fun shortDate_isMonthAndDay() {
+        assertEquals("Nov 9", formatShortDate(1_794_240_000_000, ZoneOffset.UTC, Locale.US))
+    }
+
+    @Test
     fun minutes_splitIntoHoursAndMinutes() {
         assertEquals(1L to 15L, splitHoursMinutes(75))
         assertEquals(0L to 52L, splitHoursMinutes(52))
