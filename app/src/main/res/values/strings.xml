@@ -257,4 +257,15 @@
     <string name="auth_error_weak_password">Choose a stronger password with at least 6 characters.</string>
     <string name="auth_error_network">No internet connection. Check your network and try again.</string>
     <string name="auth_error_unknown">Something went wrong. Please try again.</string>
+
+    <!-- Error states: what went wrong and what to do, in plain words -->
+    <string name="error_try_again">Try again</string>
+    <string name="error_dismiss">Dismiss</string>
+    <string name="progress_load_failed">Your history could not be loaded. Check that your phone has free storage, then try again.</string>
+    <string name="progress_weight_not_saved">Your weight was not saved. Please log it again.</string>
+    <string name="progress_weight_not_deleted">That weigh-in was not deleted. Please try again.</string>
+    <string name="session_error_set">That set was not saved. Your numbers are still in the boxes, so tap Add set again.</string>
+    <string name="session_error_change">That change was not saved. Please try again.</string>
+    <string name="session_error_finish">The workout was not saved. Your sets are still here, so tap Finish again.</string>
+    <string name="run_save_failed">This run was not saved. It is still recording, so tap Finish again.</string>
 </resources>

@@ -121,4 +121,15 @@ class WorkoutSessionTest {
         composeRule.onNodeWithTag("rest_skip").performClick()
         composeRule.onNodeWithTag("rest_bar").assertDoesNotExist()
     }
+
+    @Test
+    fun aSetThatCannotBeSaved_showsAnError_andKeepsTheNumbers() {
+        repository.failWrites = true
+        showSession()
+
+        logSquat("60", "10")
+
+        composeRule.onNodeWithTag("session_error").assertIsDisplayed()
+        composeRule.onNodeWithText("That set was not saved", substring = true, useUnmergedTree = true).assertIsDisplayed()
+    }
 }

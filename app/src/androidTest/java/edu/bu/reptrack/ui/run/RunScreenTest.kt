@@ -95,4 +95,12 @@ class RunScreenTest {
 
         assertTrue(settingsOpened)
     }
+
+    @Test
+    fun saveFailure_saysTheRunIsStillRecording() {
+        show(RunUiState(isRunning = true, distanceM = 500.0, saveFailed = true))
+
+        composeRule.onNodeWithTag("run_save_error").assertIsDisplayed()
+        composeRule.onNodeWithTag("run_finish").assertIsEnabled()
+    }
 }

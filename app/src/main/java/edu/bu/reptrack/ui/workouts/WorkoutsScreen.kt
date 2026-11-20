@@ -64,6 +64,7 @@ import edu.bu.reptrack.ui.components.IconTile
 import edu.bu.reptrack.ui.components.Overline
 import edu.bu.reptrack.ui.components.VoltCard
 import edu.bu.reptrack.ui.components.labelRes
+import edu.bu.reptrack.ui.components.readableWidth
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import edu.bu.reptrack.ui.theme.statStyle
 import java.time.LocalDate
@@ -121,6 +122,7 @@ fun WorkoutsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .readableWidth()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 24.dp)
             .testTag("screen_workouts"),
@@ -153,6 +155,7 @@ fun WorkoutsScreen(
                         inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     ),
                     icon = {},
+                    modifier = Modifier.heightIn(min = 48.dp),
                 ) {
                     Text(stringResource(place.labelRes()))
                 }

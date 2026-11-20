@@ -253,6 +253,16 @@ fun RunScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
+                if (state.saveFailed) {
+                    Text(
+                        text = stringResource(R.string.run_save_failed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ember,
+                        modifier = Modifier
+                            .semantics { liveRegion = LiveRegionMode.Polite }
+                            .testTag("run_save_error"),
+                    )
+                }
                 Buttons(state = state, onStart = onStart, onFinish = onFinish, onClose = onClose)
             }
         }

@@ -44,7 +44,11 @@ class FakeRunRepository : RunRepository {
 
     val saved: List<RunSummary> get() = runs.value
 
+    /** Makes saving throw, like a full disk, to test the error state. */
+    var failSaves = false
+
     override suspend fun saveRun(run: RunSummary): Long {
+        if (failSaves) throw java.io.IOException("disk full")
         val id = nextId++
         runs.value = (runs.value + run.copy(id = id)).sortedByDescending { it.finishedAt }
         return id

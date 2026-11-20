@@ -89,6 +89,9 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    // Google's Accessibility Test Framework inside Compose UI tests: fails on small touch
+    // targets, low text contrast and missing labels.
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4.accessibility)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

@@ -291,4 +291,39 @@ class WorkoutSessionViewModelTest {
 
         assertEquals(50_000L, viewModel.uiState.value.rest?.endsAt)
     }
+
+    @Test
+    fun setSaveFailure_saysSo_andKeepsTheTypedNumbers() = runTest {
+        val viewModel = newViewModel()
+        repository.failWrites = true
+
+        viewModel.log("Squat", "60", "10")
+
+        val state = viewModel.uiState.value
+        assertEquals(SessionError.SET_NOT_SAVED, state.error)
+        assertEquals("60", viewModel.squat().weightInput)
+        assertEquals("10", viewModel.squat().repsInput)
+        assertNull(state.rest)
+    }
+
+    @Test
+    fun aSaveThatWorks_clearsTheError_andDismissClearsItToo() = runTest {
+        val viewModel = newViewModel()
+        repository.failWrites = true
+        viewModel.log("Squat", "60", "10")
+        repository.failWrites = false
+
+        viewModel.addSet("Squat")
+
+        assertNull(viewModel.uiState.value.error)
+        assertEquals(1, viewModel.squat().sets.size)
+
+        repository.failWrites = true
+        viewModel.finish()
+        assertEquals(SessionError.FINISH_FAILED, viewModel.uiState.value.error)
+        assertNull(viewModel.uiState.value.outcome)
+
+        viewModel.dismissError()
+        assertNull(viewModel.uiState.value.error)
+    }
 }

@@ -244,4 +244,35 @@ class ProgressViewModelTest {
 
         assertEquals(WeekTotals(workouts = 0, distanceM = 5_000.0, calories = 300), totals)
     }
+
+    @Test
+    fun weightSaveFailure_showsAMessage_untilDismissed() = runTest {
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+        weights.failWrites = true
+
+        viewModel.openLogWeight()
+        viewModel.onWeightInput("80")
+        viewModel.saveWeight()
+
+        assertEquals(ProgressMessage.WEIGHT_NOT_SAVED, viewModel.uiState.value.message)
+        assertTrue(weights.saved.isEmpty())
+
+        viewModel.dismissMessage()
+        assertNull(viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun loadFailure_offersTryAgain_andTryAgainReloads() = runTest {
+        weights.failReads = true
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+        assertTrue(viewModel.uiState.value.loadFailed)
+
+        weights.failReads = false
+        viewModel.retry()
+
+        assertFalse(viewModel.uiState.value.loadFailed)
+        assertFalse(viewModel.uiState.value.isLoading)
+    }
 }

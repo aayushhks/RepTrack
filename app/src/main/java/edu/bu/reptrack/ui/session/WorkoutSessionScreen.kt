@@ -1,6 +1,7 @@
 package edu.bu.reptrack.ui.session
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,7 +69,9 @@ import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.workout.LoggedSet
 import edu.bu.reptrack.domain.workout.Rest
+import edu.bu.reptrack.ui.components.ErrorCard
 import edu.bu.reptrack.ui.components.VoltCard
+import edu.bu.reptrack.ui.components.readableWidth
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import edu.bu.reptrack.ui.theme.statStyle
 import kotlinx.coroutines.delay
@@ -106,6 +109,7 @@ fun WorkoutSessionRoute(
         onFinish = viewModel::finish,
         onAdjustRest = viewModel::adjustRest,
         onSkipRest = viewModel::skipRest,
+        onDismissError = viewModel::dismissError,
         modifier = modifier,
     )
 
@@ -138,11 +142,13 @@ fun WorkoutSessionScreen(
     onFinish: () -> Unit,
     onAdjustRest: (seconds: Int) -> Unit,
     onSkipRest: () -> Unit,
+    onDismissError: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            .readableWidth()
             .imePadding()
             .testTag("screen_workout_session"),
     ) {
@@ -196,6 +202,14 @@ fun WorkoutSessionScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                state.error?.let { error ->
+                    ErrorCard(
+                        message = stringResource(error.messageRes()),
+                        actionLabel = stringResource(R.string.error_dismiss),
+                        onAction = onDismissError,
+                        modifier = Modifier.testTag("session_error"),
+                    )
+                }
                 state.rest?.let { rest ->
                     RestTimer(rest = rest, onAdjust = onAdjustRest, onSkip = onSkipRest)
                 }
@@ -228,6 +242,13 @@ fun WorkoutSessionScreen(
             }
         }
     }
+}
+
+@StringRes
+private fun SessionError.messageRes(): Int = when (this) {
+    SessionError.SET_NOT_SAVED -> R.string.session_error_set
+    SessionError.CHANGE_NOT_SAVED -> R.string.session_error_change
+    SessionError.FINISH_FAILED -> R.string.session_error_finish
 }
 
 /** One bar per exercise, lime once it has a set, so the user sees how far along they are. */
@@ -602,6 +623,7 @@ private fun WorkoutSessionScreenPreview() {
             onFinish = {},
             onAdjustRest = {},
             onSkipRest = {},
+            onDismissError = {},
         )
     }
 }

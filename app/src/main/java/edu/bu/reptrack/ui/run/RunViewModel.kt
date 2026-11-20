@@ -13,6 +13,7 @@ import edu.bu.reptrack.data.run.RunRepository
 import edu.bu.reptrack.domain.run.RunMath
 import edu.bu.reptrack.domain.run.RunSummary
 import edu.bu.reptrack.service.RunServiceController
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +49,8 @@ data class RunUiState(
     val weightKnown: Boolean = true,
     val showLeaveDialog: Boolean = false,
     val isSaving: Boolean = false,
+    /** Saving failed. The run is still being recorded, so Finish can be tried again. */
+    val saveFailed: Boolean = false,
     val outcome: RunOutcome? = null,
 ) {
     /** Like a workout needs one set, a run needs a little distance before it can be saved. */
@@ -77,6 +80,7 @@ class RunViewModel(
         val approximateOnly: Boolean = false,
         val showLeaveDialog: Boolean = false,
         val isSaving: Boolean = false,
+        val saveFailed: Boolean = false,
         val outcome: RunOutcome? = null,
     )
 
@@ -124,10 +128,21 @@ class RunViewModel(
     /** Saves the run to history. Does nothing until the run has some distance. */
     fun finish() {
         if (!uiState.value.canFinish) return
-        val run = recorder.stop() ?: return
-        local.update { it.copy(isSaving = true) }
+        val run = recorder.active.value ?: return
+        val summary = run.toSummary(finishedAt = now(), weightKg = weightKg.value ?: DEFAULT_WEIGHT_KG)
+        local.update { it.copy(isSaving = true, saveFailed = false) }
         viewModelScope.launch {
-            runs.saveRun(run.toSummary(finishedAt = now(), weightKg = weightKg.value ?: DEFAULT_WEIGHT_KG))
+            try {
+                runs.saveRun(summary)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                // The recording only stops once the run is safely saved, so nothing is lost
+                // and the user can tap Finish again.
+                local.update { it.copy(isSaving = false, saveFailed = true) }
+                return@launch
+            }
+            recorder.stop()
             local.update { it.copy(isSaving = false, outcome = RunOutcome.SAVED) }
         }
     }
@@ -167,6 +182,7 @@ class RunViewModel(
             weightKnown = weight != null,
             showLeaveDialog = state.showLeaveDialog,
             isSaving = state.isSaving,
+            saveFailed = state.saveFailed,
             outcome = state.outcome,
         )
     }

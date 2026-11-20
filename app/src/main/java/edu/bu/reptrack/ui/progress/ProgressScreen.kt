@@ -60,9 +60,11 @@ import edu.bu.reptrack.domain.weight.WeightEntry
 import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.WorkoutSession
 import edu.bu.reptrack.domain.workout.durationMinutes
+import edu.bu.reptrack.ui.components.ErrorCard
 import edu.bu.reptrack.ui.components.IconTile
 import edu.bu.reptrack.ui.components.Overline
 import edu.bu.reptrack.ui.components.StatTile
+import edu.bu.reptrack.ui.components.readableWidth
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import java.util.Locale
 import kotlin.math.abs
@@ -86,6 +88,8 @@ fun ProgressRoute(
         onDeleteWeight = viewModel::requestDelete,
         onConfirmDelete = viewModel::confirmDelete,
         onDismissDelete = viewModel::dismissDelete,
+        onRetry = viewModel::retry,
+        onDismissMessage = viewModel::dismissMessage,
         modifier = modifier,
     )
 }
@@ -102,8 +106,28 @@ fun ProgressScreen(
     onDeleteWeight: (WeightEntry) -> Unit,
     onConfirmDelete: () -> Unit,
     onDismissDelete: () -> Unit,
+    onRetry: () -> Unit,
+    onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (state.loadFailed) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .readableWidth()
+                .padding(20.dp)
+                .testTag("screen_progress"),
+            contentAlignment = Alignment.Center,
+        ) {
+            ErrorCard(
+                message = stringResource(R.string.progress_load_failed),
+                actionLabel = stringResource(R.string.error_try_again),
+                onAction = onRetry,
+                modifier = Modifier.testTag("progress_error"),
+            )
+        }
+        return
+    }
     if (state.isLoading) {
         Box(
             modifier = modifier
@@ -120,8 +144,9 @@ fun ProgressScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            .readableWidth()
             .testTag("screen_progress"),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "page_title") {
@@ -130,6 +155,21 @@ fun ProgressScreen(
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.semantics { heading() },
             )
+        }
+        state.message?.let { message ->
+            item(key = "message") {
+                ErrorCard(
+                    message = stringResource(
+                        when (message) {
+                            ProgressMessage.WEIGHT_NOT_SAVED -> R.string.progress_weight_not_saved
+                            ProgressMessage.WEIGHT_NOT_DELETED -> R.string.progress_weight_not_deleted
+                        },
+                    ),
+                    actionLabel = stringResource(R.string.error_dismiss),
+                    onAction = onDismissMessage,
+                    modifier = Modifier.testTag("progress_message"),
+                )
+            }
         }
         item(key = "weight_title") { SectionTitle(stringResource(R.string.weight_title)) }
         item(key = "weight_card", contentType = "weight") {
@@ -649,6 +689,8 @@ private fun ProgressScreenPreview() {
             onDeleteWeight = {},
             onConfirmDelete = {},
             onDismissDelete = {},
+            onRetry = {},
+            onDismissMessage = {},
         )
     }
 }
