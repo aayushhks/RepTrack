@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Folders other apps may read through the FileProvider: only the story pictures, nothing else. -->
+<paths>
+    <cache-path
+        name="stories"
+        path="stories/" />
+</paths>

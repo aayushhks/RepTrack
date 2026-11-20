@@ -22,11 +22,16 @@ object RunMath {
     private const val MPS_TO_MPH = 2.2369363
 
     /** Great-circle distance in meters (haversine formula). Close enough to the phone's own for a run. */
-    fun distanceM(a: GeoPoint, b: GeoPoint): Double {
-        val lat1 = Math.toRadians(a.latitude)
-        val lat2 = Math.toRadians(b.latitude)
+    fun distanceM(a: GeoPoint, b: GeoPoint): Double = haversineM(a.latitude, a.longitude, b.latitude, b.longitude)
+
+    /** The same distance between two points of a saved route. */
+    fun distanceM(a: RoutePoint, b: RoutePoint): Double = haversineM(a.latitude, a.longitude, b.latitude, b.longitude)
+
+    private fun haversineM(latitudeA: Double, longitudeA: Double, latitudeB: Double, longitudeB: Double): Double {
+        val lat1 = Math.toRadians(latitudeA)
+        val lat2 = Math.toRadians(latitudeB)
         val dLat = lat2 - lat1
-        val dLon = Math.toRadians(b.longitude - a.longitude)
+        val dLon = Math.toRadians(longitudeB - longitudeA)
         val h = sin(dLat / 2) * sin(dLat / 2) + cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2)
         return 2 * EARTH_RADIUS_M * asin(sqrt(h.coerceIn(0.0, 1.0)))
     }

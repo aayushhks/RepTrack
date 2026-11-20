@@ -4,7 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-/** Table row for one finished walk or run. Only totals: the route is never stored. */
+/** Table row for one finished walk or run: the totals. Its route, if any, is a row in run_routes. */
 @Entity(tableName = "runs")
 data class RunEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

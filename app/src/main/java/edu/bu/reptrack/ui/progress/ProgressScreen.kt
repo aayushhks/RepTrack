@@ -1,6 +1,7 @@
 package edu.bu.reptrack.ui.progress
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.testTag
@@ -39,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -74,6 +77,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ProgressRoute(
     onStartWorkout: () -> Unit,
+    onOpenRun: (runId: Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgressViewModel = viewModel(factory = ProgressViewModel.Factory),
 ) {
@@ -90,6 +94,7 @@ fun ProgressRoute(
         onDismissDelete = viewModel::dismissDelete,
         onRetry = viewModel::retry,
         onDismissMessage = viewModel::dismissMessage,
+        onOpenRun = onOpenRun,
         modifier = modifier,
     )
 }
@@ -109,6 +114,8 @@ fun ProgressScreen(
     onRetry: () -> Unit,
     onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A run card was tapped: open it on its map. */
+    onOpenRun: (runId: Long) -> Unit = {},
 ) {
     if (state.loadFailed) {
         Box(
@@ -199,7 +206,7 @@ fun ProgressScreen(
             ) { item ->
                 when (item) {
                     is HistoryItem.Workout -> HistoryCard(summary = item.summary)
-                    is HistoryItem.Run -> RunHistoryCard(run = item.run)
+                    is HistoryItem.Run -> RunHistoryCard(run = item.run, onClick = { onOpenRun(item.run.id) })
                 }
             }
         }
@@ -572,9 +579,9 @@ private fun HistoryCard(summary: SessionSummary, modifier: Modifier = Modifier) 
     )
 }
 
-/** A walk or run in the history: date, time, then distance, pace and calories. */
+/** A walk or run in the history: date, time, then distance, pace and calories. Tap to see its map. */
 @Composable
-private fun RunHistoryCard(run: RunSummary, modifier: Modifier = Modifier) {
+private fun RunHistoryCard(run: RunSummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
     HistoryRow(
         icon = R.drawable.ic_run,
         tint = MaterialTheme.colorScheme.tertiary,
@@ -589,6 +596,8 @@ private fun RunHistoryCard(run: RunSummary, modifier: Modifier = Modifier) {
             run.calories,
         ),
         statsTag = "run_stats_${run.id}",
+        onClick = onClick,
+        onClickLabel = stringResource(R.string.history_open_run),
         modifier = modifier.testTag("run_${run.id}"),
     )
 }
@@ -605,9 +614,21 @@ private fun HistoryRow(
     stats: String,
     statsTag: String,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null,
 ) {
+    // A tappable card says what a tap does ("Open on map"), so TalkBack can read it out.
+    val clickModifier = if (onClick == null) {
+        Modifier
+    } else {
+        Modifier
+            .clip(CardDefaults.shape)
+            .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
+    }
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(clickModifier),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
     ) {
         Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {

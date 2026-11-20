@@ -1,5 +1,6 @@
 package edu.bu.reptrack
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -7,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
@@ -19,6 +22,8 @@ import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
+import edu.bu.reptrack.domain.run.DayPart
+import edu.bu.reptrack.domain.run.RoutePoint
 import edu.bu.reptrack.domain.run.RunSummary
 import edu.bu.reptrack.domain.settings.ThemeMode
 import edu.bu.reptrack.domain.weight.WeightEntry
@@ -36,8 +41,12 @@ import edu.bu.reptrack.ui.progress.ProgressScreen
 import edu.bu.reptrack.ui.progress.ProgressUiState
 import edu.bu.reptrack.ui.progress.WeekTotals
 import edu.bu.reptrack.ui.progress.summarizeWeights
+import edu.bu.reptrack.ui.run.RunDetailScreen
+import edu.bu.reptrack.ui.run.RunDetailUiState
 import edu.bu.reptrack.ui.run.RunScreen
 import edu.bu.reptrack.ui.run.RunUiState
+import edu.bu.reptrack.ui.run.story.RunStoryScreen
+import edu.bu.reptrack.ui.run.story.RunStoryUiState
 import edu.bu.reptrack.ui.session.ExerciseUi
 import edu.bu.reptrack.ui.session.RestTimerUi
 import edu.bu.reptrack.ui.session.SessionError
@@ -208,6 +217,63 @@ class AccessibilityChecksTest {
     fun run_permissionDenied() = check {
         RunScreen(state = RunUiState(permissionDenied = true), onStart = {}, onFinish = {}, onClose = {}, onOpenSettings = {})
     }
+
+    // ---- A saved run on its map, and its story ----
+
+    private fun runDetailState() = RunDetailUiState(
+        isLoading = false,
+        run = RunSummary(4, now, now + 26 * 60_000L, 5_020.0, 26 * 60_000L, 410),
+        route = listOf(RoutePoint(42.35, -71.10), RoutePoint(42.36, -71.09)),
+        dayPart = DayPart.MORNING,
+    )
+
+    // A plain box stands in for the map, which needs the internet and a graphics driver.
+    @Composable
+    private fun RunDetail(state: RunDetailUiState = runDetailState()) = RunDetailScreen(
+        state = state,
+        onBack = {},
+        onShare = {},
+        onRetry = {},
+        map = { _, mapModifier -> Box(mapModifier) },
+    )
+
+    @Composable
+    private fun Story(state: RunStoryUiState = RunStoryUiState(isLoading = false, run = runDetailState().run, hasRoute = true, imagePath = "/cache/stories/run_4.png")) =
+        RunStoryScreen(
+            state = state,
+            instagramAvailable = true,
+            onClose = {},
+            onStyleSelected = {},
+            onHideEndsChange = {},
+            onShareInstagram = {},
+            onShareMore = {},
+            onRetry = {},
+            preview = { _, description, previewModifier -> Box(previewModifier.semantics { contentDescription = description }) },
+        )
+
+    @Test
+    fun runDetail_dark() = check(dark = true) { RunDetail() }
+
+    @Test
+    fun runDetail_light() = check(dark = false) { RunDetail() }
+
+    @Test
+    fun runDetail_largestFont() = check(fontScale = 2f) { RunDetail() }
+
+    @Test
+    fun runDetail_withoutARoute() = check { RunDetail(runDetailState().copy(route = emptyList())) }
+
+    @Test
+    fun story_dark() = check(dark = true) { Story() }
+
+    @Test
+    fun story_light() = check(dark = false) { Story() }
+
+    @Test
+    fun story_largestFont() = check(fontScale = 2f) { Story() }
+
+    @Test
+    fun story_whileDrawing() = check { Story(RunStoryUiState(isLoading = false, run = runDetailState().run, hasRoute = true, isDrawing = true)) }
 
     // ---- Profile, sign in and setup ----
 

@@ -15,4 +15,15 @@ object Routes {
 
     /** The walk or run screen, also inside the Workouts tab. */
     const val RUN = "run"
+
+    // Screens inside the Progress tab, also a nested graph: the history, then a saved run on
+    // its map, then the picture to share it as a story.
+    const val PROGRESS_HOME = "progress_home"
+    const val ARG_RUN_ID = "runId"
+    const val RUN_DETAIL = "run_detail/{$ARG_RUN_ID}"
+    const val RUN_STORY = "run_story/{$ARG_RUN_ID}"
+
+    fun runDetail(runId: Long) = "run_detail/$runId"
+
+    fun runStory(runId: Long) = "run_story/$runId"
 }

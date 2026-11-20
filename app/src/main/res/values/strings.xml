@@ -202,7 +202,7 @@
     <!-- Walk or run -->
     <string name="run_title">Walk or run</string>
     <string name="run_close">Leave run</string>
-    <string name="run_ready">Tap Start when you are ready. Your route stays on this phone; only the totals are saved.</string>
+    <string name="run_ready">Tap Start when you are ready. Your route is saved on this phone only.</string>
     <string name="run_tracking">Tracking. You can lock your phone.</string>
     <string name="run_waiting_gps">Waiting for GPS…</string>
     <string name="run_location_failed">Location stopped. Check that location is on, then finish or discard this run.</string>
@@ -233,6 +233,46 @@
     <string name="history_run">Run</string>
     <string name="history_walk">Walk</string>
     <string name="history_run_stats">%1$s km, %2$s /km pace, %3$d kcal</string>
+    <string name="history_open_run">Open on map</string>
+
+    <!-- A saved run on its map, and its story picture. Run names like Strava: "Morning run", "Lunch walk" -->
+    <string name="day_part_morning">Morning</string>
+    <string name="day_part_lunch">Lunch</string>
+    <string name="day_part_afternoon">Afternoon</string>
+    <string name="day_part_evening">Evening</string>
+    <string name="day_part_night">Night</string>
+    <string name="run_name_run">%1$s run</string>
+    <string name="run_name_walk">%1$s walk</string>
+    <string name="run_detail_back">Back to history</string>
+    <string name="run_detail_distance">Distance</string>
+    <string name="run_detail_km">km</string>
+    <string name="run_detail_map_description">Map of the route, from start to finish</string>
+    <string name="run_detail_no_route_title">No map for this one</string>
+    <string name="run_detail_no_route_message">Runs saved before routes were kept only have their totals. Your next run will show its route here.</string>
+    <string name="run_detail_share">Share to story</string>
+    <string name="run_detail_not_found">This run is not in your history any more.</string>
+    <string name="run_detail_load_failed">This run could not be loaded. Try again.</string>
+    <!-- The map's data and tiles: their licenses ask for this credit wherever the map is shown -->
+    <string name="map_attribution">Map © OpenFreeMap, © OpenMapTiles. Data © OpenStreetMap contributors</string>
+    <string name="story_title">Share to story</string>
+    <string name="story_close">Close</string>
+    <string name="story_style_map">Map</string>
+    <string name="story_style_dark">Dark</string>
+    <string name="story_style_lime">Lime</string>
+    <string name="story_hide_ends">Hide start and end</string>
+    <string name="story_hide_ends_message">Cuts the first and last 200 m, so your home stays private.</string>
+    <string name="story_instagram">Instagram story</string>
+    <string name="story_more">More apps</string>
+    <string name="story_share">Share</string>
+    <string name="story_share_chooser">Share your run</string>
+    <string name="story_drawing">Drawing your story…</string>
+    <string name="story_failed">The picture could not be made. Try again.</string>
+    <string name="story_map_unavailable">The map could not load, so this card has no map. Check your internet connection, or pick Dark or Lime.</string>
+    <string name="story_instagram_failed">Instagram did not open. Use More apps instead.</string>
+    <!-- Read by TalkBack for the preview. Example: "Story picture: Morning run, 5.02 km" -->
+    <string name="story_preview_description">Story picture: %1$s, %2$s km</string>
+    <string name="story_brand">RepTrack</string>
+    <string name="story_map_credit">© OpenStreetMap contributors · OpenFreeMap · OpenMapTiles</string>
 
     <!-- Sign in -->
     <string name="sign_in_title">Sign in</string>

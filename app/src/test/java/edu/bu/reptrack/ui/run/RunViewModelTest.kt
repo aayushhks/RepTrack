@@ -160,6 +160,20 @@ class RunViewModelTest {
     }
 
     @Test
+    fun finish_savesTheRoute_andGivesTheNewIdToOpenIt() = runTest {
+        val viewModel = newViewModel()
+        viewModel.start()
+        runMeters(200)
+
+        viewModel.finish()
+
+        val id = viewModel.uiState.value.savedRunId
+        assertEquals(runs.saved.single().id, id)
+        // 21 fixes 10 m apart, so 21 points on the map.
+        assertEquals(21, runs.savedRoutes.getValue(id!!).size)
+    }
+
+    @Test
     fun leaving_withNoRun_doesNotAsk() = runTest {
         val viewModel = newViewModel()
         viewModel.requestLeave()

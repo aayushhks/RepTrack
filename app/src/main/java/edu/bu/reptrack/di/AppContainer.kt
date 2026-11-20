@@ -19,6 +19,8 @@ import edu.bu.reptrack.data.workout.RoomWorkoutRepository
 import edu.bu.reptrack.data.workout.WorkoutRepository
 import edu.bu.reptrack.service.AndroidRunServiceController
 import edu.bu.reptrack.service.RunServiceController
+import edu.bu.reptrack.ui.run.story.AndroidStoryImageMaker
+import edu.bu.reptrack.ui.run.story.StoryImageMaker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,4 +55,7 @@ class AppContainer(context: Context) {
     )
 
     val runServiceController: RunServiceController = AndroidRunServiceController(appContext)
+
+    /** Draws a run as a story picture, with a map from OpenFreeMap behind the route. */
+    val storyImageMaker: StoryImageMaker = AndroidStoryImageMaker(appContext)
 }
