@@ -37,6 +37,7 @@ class FakeExerciseRepository(saved: List<Exercise> = emptyList()) : ExerciseRepo
         lastForce = force
         gate?.await()
         if (failRefresh) throw IOException("no connection")
-        exercises.value = online
+        // With nothing set in [online] the saved exercises stay as they were.
+        if (online.isNotEmpty()) exercises.value = online
     }
 }
