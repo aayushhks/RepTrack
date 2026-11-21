@@ -25,6 +25,8 @@ class ExercisesScreenTest {
     private var typed: String? = null
     private var category: String? = null
     private var retried = false
+    private var cleared = false
+    private var opened: Int? = null
 
     private fun show(state: ExercisesUiState) {
         composeRule.setContent {
@@ -33,7 +35,9 @@ class ExercisesScreenTest {
                     state = state,
                     onQueryChange = { typed = it },
                     onCategoryClick = { category = it },
+                    onClearSearch = { cleared = true },
                     onRetry = { retried = true },
+                    onOpenExercise = { opened = it },
                 )
             }
         }
@@ -71,11 +75,19 @@ class ExercisesScreenTest {
     }
 
     @Test
-    fun tappingAnExercise_showsHowToDoIt() {
+    fun rows_showMusclesAndEquipment_orBodyweight() {
+        show(loaded.copy(exercises = listOf(squat, bench.copy(muscles = listOf("Pecs"), equipment = emptyList()))))
+        composeRule.onNodeWithText("Quads, Glutes").assertIsDisplayed()
+        composeRule.onNodeWithText("Pecs").assertIsDisplayed()
+        composeRule.onNodeWithText("Barbell").assertIsDisplayed()
+        composeRule.onNodeWithText("Bodyweight").assertIsDisplayed()
+    }
+
+    @Test
+    fun tappingAnExercise_opensIt() {
         show(loaded)
         composeRule.onNodeWithTag("exercise_1").performClick()
-        composeRule.onNodeWithText("Keep your back straight.").assertIsDisplayed()
-        composeRule.onNodeWithText("Muscles: Quads, Glutes").assertIsDisplayed()
+        assertEquals(1, opened)
     }
 
     @Test
@@ -88,9 +100,12 @@ class ExercisesScreenTest {
     }
 
     @Test
-    fun noMatches_saysSo() {
+    fun noMatches_saysSo_andClearsTheSearch() {
         show(loaded.copy(exercises = emptyList(), query = "zzz"))
         composeRule.onNodeWithTag("exercises_no_matches").assertIsDisplayed()
+        composeRule.onNodeWithText("No exercises match “zzz”.").assertIsDisplayed()
+        composeRule.onNodeWithText("Clear search").performClick()
+        assertTrue(cleared)
     }
 
     @Test

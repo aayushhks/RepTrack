@@ -26,4 +26,11 @@ object Routes {
     fun runDetail(runId: Long) = "run_detail/$runId"
 
     fun runStory(runId: Long) = "run_story/$runId"
+
+    // Screens inside the Exercises tab, also a nested graph: the list, then one exercise on top.
+    const val EXERCISES_HOME = "exercises_home"
+    const val ARG_EXERCISE_ID = "exerciseId"
+    const val EXERCISE_DETAIL = "exercise_detail/{$ARG_EXERCISE_ID}"
+
+    fun exerciseDetail(exerciseId: Int) = "exercise_detail/$exerciseId"
 }

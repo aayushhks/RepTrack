@@ -1,5 +1,6 @@
 package edu.bu.reptrack.ui.exercises
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,28 +10,24 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -38,15 +35,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
 import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.exercise.Exercise
 import edu.bu.reptrack.ui.components.ErrorCard
+import edu.bu.reptrack.ui.components.IconTile
+import edu.bu.reptrack.ui.components.VoltCard
 import edu.bu.reptrack.ui.components.readableWidth
 
-/** Connects the Exercises tab to its ViewModel. */
+/** Connects the Exercises list to its ViewModel. */
 @Composable
 fun ExercisesRoute(
+    onOpenExercise: (exerciseId: Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ExercisesViewModel = viewModel(factory = ExercisesViewModel.Factory),
 ) {
@@ -55,18 +54,22 @@ fun ExercisesRoute(
         state = state,
         onQueryChange = viewModel::onQueryChange,
         onCategoryClick = viewModel::onCategoryClick,
+        onClearSearch = viewModel::clearSearch,
         onRetry = viewModel::retry,
+        onOpenExercise = onOpenExercise,
         modifier = modifier,
     )
 }
 
-/** Exercises tab: search and filter the wger catalog. Stateless. */
+/** Exercises tab: search and filter the wger catalog, tap one to open it. Stateless. */
 @Composable
 fun ExercisesScreen(
     state: ExercisesUiState,
     onQueryChange: (String) -> Unit,
     onCategoryClick: (String?) -> Unit,
+    onClearSearch: () -> Unit,
     onRetry: () -> Unit,
+    onOpenExercise: (exerciseId: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -116,7 +119,7 @@ fun ExercisesScreen(
                 }
             }
 
-            else -> ExerciseList(state, onQueryChange, onCategoryClick, onRetry)
+            else -> ExerciseList(state, onQueryChange, onCategoryClick, onClearSearch, onRetry, onOpenExercise)
         }
     }
 }
@@ -126,7 +129,9 @@ private fun ColumnScope.ExerciseList(
     state: ExercisesUiState,
     onQueryChange: (String) -> Unit,
     onCategoryClick: (String?) -> Unit,
+    onClearSearch: () -> Unit,
     onRetry: () -> Unit,
+    onOpenExercise: (Int) -> Unit,
 ) {
     OutlinedTextField(
         value = state.query,
@@ -155,6 +160,7 @@ private fun ColumnScope.ExerciseList(
         }
     }
     if (state.refreshFailed) {
+        // Same list, saved on the phone: say so, and offer another try.
         ErrorCard(
             message = stringResource(R.string.exercises_offline),
             actionLabel = stringResource(R.string.error_try_again),
@@ -168,17 +174,26 @@ private fun ColumnScope.ExerciseList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (state.exercises.isEmpty()) {
-            item {
-                Text(
-                    text = stringResource(R.string.exercises_no_matches),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            item(key = "no_matches") {
+                Column(
                     modifier = Modifier.padding(vertical = 16.dp).testTag("exercises_no_matches"),
-                )
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.exercises_no_matches, state.query.trim()),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onClearSearch) {
+                        Text(stringResource(R.string.exercises_clear_search))
+                    }
+                }
             }
         }
-        items(state.exercises, key = { it.id }) { exercise -> ExerciseCard(exercise) }
-        item {
+        items(state.exercises, key = { it.id }) { exercise ->
+            ExerciseRow(exercise, onClick = { onOpenExercise(exercise.id) })
+        }
+        item(key = "credit") {
             Text(
                 text = stringResource(R.string.exercises_credit),
                 style = MaterialTheme.typography.bodySmall,
@@ -189,46 +204,37 @@ private fun ColumnScope.ExerciseList(
     }
 }
 
-/** One exercise. Tapping it shows or hides the muscles, equipment and how to do it. */
+/** One exercise in the list: name, main muscles and equipment. */
 @Composable
-private fun ExerciseCard(exercise: Exercise, modifier: Modifier = Modifier) {
-    var expanded by rememberSaveable(exercise.id) { mutableStateOf(false) }
-    Card(
-        onClick = { expanded = !expanded },
-        modifier = modifier.fillMaxWidth().testTag("exercise_${exercise.id}"),
+private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val muscles = exercise.muscles.joinToString(", ").ifEmpty { exercise.category }
+    val equipment = exercise.equipment.joinToString(", ").ifEmpty { stringResource(R.string.exercises_bodyweight) }
+    VoltCard(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(role = Role.Button, onClick = onClick)
+            .testTag("exercise_${exercise.id}"),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                exercise.imageUrl?.let { url ->
-                    // The name next to it says everything, so TalkBack skips the picture.
-                    AsyncImage(
-                        model = url,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(64.dp).clip(MaterialTheme.shapes.small),
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(
+                icon = R.drawable.ic_tab_exercises,
+                tint = MaterialTheme.colorScheme.primary,
+                container = MaterialTheme.colorScheme.surfaceContainerHigh,
+            )
+            Column(Modifier.weight(1f)) {
+                Text(exercise.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (muscles.isNotBlank()) {
+                    Text(
+                        muscles,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Column(Modifier.weight(1f)) {
-                    Text(exercise.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    if (exercise.category.isNotBlank()) {
-                        Text(
-                            exercise.category,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            if (expanded) {
-                if (exercise.muscles.isNotEmpty()) {
-                    Text(stringResource(R.string.exercises_muscles, exercise.muscles.joinToString(", ")))
-                }
-                if (exercise.equipment.isNotEmpty()) {
-                    Text(stringResource(R.string.exercises_equipment, exercise.equipment.joinToString(", ")))
-                }
-                if (exercise.description.isNotBlank()) {
-                    Text(exercise.description, style = MaterialTheme.typography.bodyMedium)
-                }
+                Text(
+                    equipment,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

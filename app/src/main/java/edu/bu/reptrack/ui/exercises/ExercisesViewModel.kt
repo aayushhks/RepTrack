@@ -77,7 +77,7 @@ class ExercisesViewModel(
     )
 
     init {
-        refresh()
+        refresh(force = false)
     }
 
     fun onQueryChange(text: String) {
@@ -89,14 +89,20 @@ class ExercisesViewModel(
         savedState[KEY_CATEGORY] = if (selected == category.value) null else selected
     }
 
-    fun retry() = refresh()
+    /** Clears the search text and the category, so the whole list is back. */
+    fun clearSearch() {
+        savedState[KEY_QUERY] = ""
+        savedState[KEY_CATEGORY] = null
+    }
 
-    private fun refresh() {
+    fun retry() = refresh(force = true)
+
+    private fun refresh(force: Boolean) {
         if (refreshJob?.isActive == true) return
         refreshState.value = RefreshState.LOADING
         refreshJob = viewModelScope.launch {
             refreshState.value = try {
-                repository.refresh()
+                repository.refresh(force)
                 RefreshState.DONE
             } catch (e: CancellationException) {
                 throw e
