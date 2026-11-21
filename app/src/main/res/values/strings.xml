@@ -7,7 +7,16 @@
     <string name="tab_progress">Progress</string>
     <string name="tab_profile">Profile</string>
 
-    <string name="exercises_placeholder">Browse and search the exercise catalog here.</string>
+    <string name="exercises_search">Search exercises</string>
+    <string name="exercises_all">All</string>
+    <string name="exercises_loading">Loading exercises</string>
+    <string name="exercises_load_failed">The exercise catalog could not be loaded. Check your connection, then try again.</string>
+    <string name="exercises_offline">Could not reach wger. Showing the exercises saved on your phone.</string>
+    <string name="exercises_empty">No exercises yet.</string>
+    <string name="exercises_no_matches">No exercises match your search.</string>
+    <string name="exercises_muscles">Muscles: %1$s</string>
+    <string name="exercises_equipment">Equipment: %1$s</string>
+    <string name="exercises_credit">Exercise data from wger.de, CC-BY-SA.</string>
 
     <!-- Goal setup -->
     <string name="setup_title">Set up your plan</string>

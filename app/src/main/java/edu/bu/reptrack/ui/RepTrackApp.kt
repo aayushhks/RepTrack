@@ -45,7 +45,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import edu.bu.reptrack.domain.auth.FirstScreen
 import edu.bu.reptrack.ui.auth.SignInRoute
-import edu.bu.reptrack.ui.exercises.ExercisesScreen
+import edu.bu.reptrack.ui.exercises.ExercisesRoute
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
 import edu.bu.reptrack.ui.profile.ProfileRoute
@@ -284,7 +284,7 @@ fun RepTrackNavHost(
                         )
                     }
                 }
-                composable(TopLevelDestination.EXERCISES.route) { ExercisesScreen() }
+                composable(TopLevelDestination.EXERCISES.route) { ExercisesRoute() }
                 // The Progress tab is a nested graph too: the history, then a saved run on its map,
                 // then its story picture. Each opens on top, so Back walks back through them.
                 navigation(startDestination = Routes.PROGRESS_HOME, route = TopLevelDestination.PROGRESS.route) {
