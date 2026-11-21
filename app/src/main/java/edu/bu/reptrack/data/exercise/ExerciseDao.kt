@@ -15,4 +15,10 @@ interface ExerciseDao {
     /** Live: updates by itself when a refresh saves new rows. */
     @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<ExerciseEntity>>
+
+    @Query("SELECT * FROM exercises WHERE id = :id")
+    fun observeById(id: Int): Flow<ExerciseEntity?>
+
+    @Query("SELECT COUNT(*) FROM exercises")
+    suspend fun count(): Int
 }

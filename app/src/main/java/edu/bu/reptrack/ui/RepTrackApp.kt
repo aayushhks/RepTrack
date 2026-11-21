@@ -45,6 +45,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import edu.bu.reptrack.domain.auth.FirstScreen
 import edu.bu.reptrack.ui.auth.SignInRoute
+import edu.bu.reptrack.ui.exercises.ExerciseDetailRoute
 import edu.bu.reptrack.ui.exercises.ExercisesRoute
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
@@ -284,7 +285,23 @@ fun RepTrackNavHost(
                         )
                     }
                 }
-                composable(TopLevelDestination.EXERCISES.route) { ExercisesRoute() }
+                // The Exercises tab is a nested graph too: the list, then one exercise on top. The
+                // list keeps its search while the detail is open.
+                navigation(startDestination = Routes.EXERCISES_HOME, route = TopLevelDestination.EXERCISES.route) {
+                    composable(Routes.EXERCISES_HOME) {
+                        ExercisesRoute(
+                            onOpenExercise = { id -> navController.navigate(Routes.exerciseDetail(id)) },
+                        )
+                    }
+                    composable(
+                        route = Routes.EXERCISE_DETAIL,
+                        arguments = listOf(navArgument(Routes.ARG_EXERCISE_ID) { type = NavType.IntType }),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        ExerciseDetailRoute(onBack = { navController.popBackStack() })
+                    }
+                }
                 // The Progress tab is a nested graph too: the history, then a saved run on its map,
                 // then its story picture. Each opens on top, so Back walks back through them.
                 navigation(startDestination = Routes.PROGRESS_HOME, route = TopLevelDestination.PROGRESS.route) {

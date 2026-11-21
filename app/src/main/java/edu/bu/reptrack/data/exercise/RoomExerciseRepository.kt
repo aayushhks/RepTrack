@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.map
 class RoomExerciseRepository(
     private val dao: ExerciseDao,
     private val api: ExerciseApi,
+    private val stamp: RefreshStamp,
+    private val now: () -> Long = System::currentTimeMillis,
     private val pageSize: Int = PAGE_SIZE,
     private val maxPages: Int = MAX_PAGES,
 ) : ExerciseRepository {
@@ -19,18 +21,27 @@ class RoomExerciseRepository(
     override fun observeExercises(): Flow<List<Exercise>> =
         dao.observeAll().map { rows -> rows.map { it.toDomain() } }
 
-    override suspend fun refresh() {
+    override fun observeExercise(id: Int): Flow<Exercise?> =
+        dao.observeById(id).map { it?.toDomain() }
+
+    override suspend fun refresh(force: Boolean) {
+        if (!force && dao.count() > 0) {
+            val last = stamp.lastRefresh()
+            if (last != null && now() - last < REFRESH_EVERY_MS) return
+        }
         for (page in 0 until maxPages) {
             val result = api.fetchPage(offset = page * pageSize, limit = pageSize)
             dao.upsertAll(result.results.mapNotNull { it.toEntity() })
-            if (result.next == null) return
+            if (result.next == null) break
         }
+        stamp.setLastRefresh(now())
     }
 
     companion object {
         // Each page is about 700 KB of JSON, so we keep a few hundred exercises, not all of them.
         const val PAGE_SIZE = 50
         const val MAX_PAGES = 4
+        const val REFRESH_EVERY_MS = 24 * 60 * 60 * 1000L
     }
 }
 

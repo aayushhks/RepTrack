@@ -6,9 +6,11 @@ import com.google.firebase.auth.FirebaseAuth
 import edu.bu.reptrack.data.auth.AuthRepository
 import edu.bu.reptrack.data.auth.FirebaseAuthRepository
 import edu.bu.reptrack.data.db.RepTrackDatabase
+import edu.bu.reptrack.data.exercise.DataStoreRefreshStamp
 import edu.bu.reptrack.data.exercise.ExerciseRepository
 import edu.bu.reptrack.data.exercise.RoomExerciseRepository
 import edu.bu.reptrack.data.exercise.WgerApi
+import edu.bu.reptrack.data.exercise.exerciseDataStore
 import edu.bu.reptrack.data.exercise.wgerHttpClient
 import edu.bu.reptrack.data.location.FusedLocationTracker
 import edu.bu.reptrack.data.profile.DataStoreProfileRepository
@@ -48,7 +50,11 @@ class AppContainer(context: Context) {
     val authRepository: AuthRepository = FirebaseAuthRepository(FirebaseAuth.getInstance())
 
     val exerciseRepository: ExerciseRepository =
-        RoomExerciseRepository(database.exerciseDao(), WgerApi(wgerHttpClient()))
+        RoomExerciseRepository(
+            dao = database.exerciseDao(),
+            api = WgerApi(wgerHttpClient()),
+            stamp = DataStoreRefreshStamp(appContext.exerciseDataStore),
+        )
 
     val runRepository: RunRepository = RoomRunRepository(database.runDao())
 

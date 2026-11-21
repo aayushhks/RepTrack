@@ -7,16 +7,6 @@
     <string name="tab_progress">Progress</string>
     <string name="tab_profile">Profile</string>
 
-    <string name="exercises_search">Search exercises</string>
-    <string name="exercises_all">All</string>
-    <string name="exercises_loading">Loading exercises</string>
-    <string name="exercises_load_failed">The exercise catalog could not be loaded. Check your connection, then try again.</string>
-    <string name="exercises_offline">Could not reach wger. Showing the exercises saved on your phone.</string>
-    <string name="exercises_empty">No exercises yet.</string>
-    <string name="exercises_no_matches">No exercises match your search.</string>
-    <string name="exercises_muscles">Muscles: %1$s</string>
-    <string name="exercises_equipment">Equipment: %1$s</string>
-    <string name="exercises_credit">Exercise data from wger.de, CC-BY-SA.</string>
 
     <!-- Goal setup -->
     <string name="setup_title">Set up your plan</string>
@@ -317,4 +307,22 @@
     <string name="session_error_change">That change was not saved. Please try again.</string>
     <string name="session_error_finish">The workout was not saved. Your sets are still here, so tap Finish again.</string>
     <string name="run_save_failed">This run was not saved. It is still recording, so tap Finish again.</string>
+
+    <!-- Exercises tab: the wger catalog -->
+    <string name="exercises_search">Search exercises</string>
+    <string name="exercises_all">All</string>
+    <string name="exercises_loading">Loading exercises</string>
+    <string name="exercises_load_failed">The exercise catalog could not be loaded. Check your connection, then try again.</string>
+    <string name="exercises_offline">Could not reach wger. Showing the exercises saved on your phone.</string>
+    <string name="exercises_empty">No exercises yet.</string>
+    <string name="exercises_no_matches">No exercises match “%1$s”.</string>
+    <string name="exercises_clear_search">Clear search</string>
+    <string name="exercises_bodyweight">Bodyweight</string>
+    <string name="exercises_category_label">Category</string>
+    <string name="exercises_muscles_label">Muscles</string>
+    <string name="exercises_equipment_label">Equipment</string>
+    <string name="exercises_description_label">How to do it</string>
+    <string name="exercises_not_found">This exercise is not saved on your phone.</string>
+    <string name="exercises_back">Back to exercises</string>
+    <string name="exercises_credit">Exercise data from wger.de (CC BY-SA 4.0)</string>
 </resources>

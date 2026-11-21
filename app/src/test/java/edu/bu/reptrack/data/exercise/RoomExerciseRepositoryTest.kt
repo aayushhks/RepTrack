@@ -8,6 +8,7 @@ import io.ktor.http.headersOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -26,7 +27,21 @@ class RoomExerciseRepositoryTest {
         }
 
         override fun observeAll(): Flow<List<ExerciseEntity>> = rows
+
+        override fun observeById(id: Int): Flow<ExerciseEntity?> = rows.map { list -> list.firstOrNull { it.id == id } }
+
+        override suspend fun count(): Int = rows.value.size
     }
+
+    private class FakeStamp(var last: Long? = null) : RefreshStamp {
+        override suspend fun lastRefresh(): Long? = last
+
+        override suspend fun setLastRefresh(millis: Long) {
+            last = millis
+        }
+    }
+
+    private var clock = 1_000_000L
 
     private val page = """
         {
@@ -59,12 +74,19 @@ class RoomExerciseRepositoryTest {
         body: String = page,
         onRequest: () -> Unit = {},
         maxPages: Int = 4,
+        stamp: RefreshStamp = FakeStamp(),
     ): RoomExerciseRepository {
         val engine = MockEngine {
             onRequest()
             respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
         }
-        return RoomExerciseRepository(dao, WgerApi(wgerHttpClient(engine), "http://wger.test"), maxPages = maxPages)
+        return RoomExerciseRepository(
+            dao = dao,
+            api = WgerApi(wgerHttpClient(engine), "http://wger.test"),
+            stamp = stamp,
+            now = { clock },
+            maxPages = maxPages,
+        )
     }
 
     @Test
@@ -83,6 +105,67 @@ class RoomExerciseRepositoryTest {
         assertEquals(listOf("Hamstrings"), exercise.muscles)
         assertEquals(listOf("Kettlebell"), exercise.equipment)
         assertEquals("https://x/small.png", exercise.imageUrl)
+    }
+
+    @Test
+    fun exerciseWithoutEquipment_hasAnEmptyEquipmentList() = runTest {
+        val dao = FakeExerciseDao()
+        val noEquipment = """
+            {"next": null, "results": [{"id": 5, "translations": [{"name": "Push-up", "language": 2}]}]}
+        """.trimIndent()
+        repository(dao, body = noEquipment).refresh()
+
+        val exercise = dao.rows.value.single()
+        assertEquals("", exercise.equipment)
+        assertEquals(null, exercise.imageUrl)
+    }
+
+    @Test
+    fun refresh_skipsTheDownloadWhenTheSavedCopyIsLessThanADayOld() = runTest {
+        val dao = FakeExerciseDao()
+        val stamp = FakeStamp()
+        var requests = 0
+        val repository = repository(dao, onRequest = { requests++ }, stamp = stamp)
+        repository.refresh()
+        assertEquals(1, requests)
+
+        clock += 60 * 60 * 1000L
+        repository.refresh()
+        assertEquals(1, requests)
+
+        clock += 24 * 60 * 60 * 1000L
+        repository.refresh()
+        assertEquals(2, requests)
+    }
+
+    @Test
+    fun refresh_withForce_downloadsAnyway() = runTest {
+        var requests = 0
+        val repository = repository(FakeExerciseDao(), onRequest = { requests++ })
+        repository.refresh()
+
+        repository.refresh(force = true)
+
+        assertEquals(2, requests)
+    }
+
+    @Test
+    fun failedRefresh_doesNotMarkTheCopyAsFresh() = runTest {
+        val stamp = FakeStamp()
+        try {
+            repository(FakeExerciseDao(), status = HttpStatusCode.InternalServerError, body = "{}", stamp = stamp).refresh()
+        } catch (expected: Exception) {
+        }
+        assertEquals(null, stamp.last)
+    }
+
+    @Test
+    fun observeExercise_findsOneById() = runTest {
+        val repository = repository(FakeExerciseDao())
+        repository.refresh()
+
+        assertEquals("Kettlebell Swing", repository.observeExercise(9).first()?.name)
+        assertEquals(null, repository.observeExercise(404).first())
     }
 
     @Test

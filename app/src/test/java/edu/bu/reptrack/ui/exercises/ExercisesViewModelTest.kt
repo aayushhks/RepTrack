@@ -85,6 +85,32 @@ class ExercisesViewModelTest {
     }
 
     @Test
+    fun opening_refreshesOnlyWhenDue_andRetryForcesIt() = runTest {
+        val repository = FakeExerciseRepository(saved = catalog)
+        val viewModel = ExercisesViewModel(repository, SavedStateHandle())
+        assertEquals(false, repository.lastForce)
+
+        viewModel.retry()
+
+        assertEquals(true, repository.lastForce)
+    }
+
+    @Test
+    fun clearSearch_removesTheTextAndTheCategory() = runTest {
+        val viewModel = ExercisesViewModel(FakeExerciseRepository(catalog), SavedStateHandle())
+        startCollecting(viewModel)
+        viewModel.onCategoryClick("Legs")
+        viewModel.onQueryChange("zzz")
+        assertTrue(viewModel.uiState.value.exercises.isEmpty())
+
+        viewModel.clearSearch()
+
+        assertEquals("", viewModel.uiState.value.query)
+        assertNull(viewModel.uiState.value.category)
+        assertEquals(3, viewModel.uiState.value.exercises.size)
+    }
+
+    @Test
     fun searchAndCategory_filterTheList() = runTest {
         val viewModel = ExercisesViewModel(FakeExerciseRepository(catalog), SavedStateHandle())
         startCollecting(viewModel)

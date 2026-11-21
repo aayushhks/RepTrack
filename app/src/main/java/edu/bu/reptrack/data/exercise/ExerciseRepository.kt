@@ -8,9 +8,13 @@ interface ExerciseRepository {
     /** The saved exercises by name. Emits again after every refresh. */
     fun observeExercises(): Flow<List<Exercise>>
 
+    /** One saved exercise, or null if there is none with this id. */
+    fun observeExercise(id: Int): Flow<Exercise?>
+
     /**
      * Downloads the catalog from wger and saves it. Throws if the network or the server fails.
-     * What was saved before stays, so the app keeps working offline.
+     * What was saved before stays, so the app keeps working offline. Without [force] it does
+     * nothing when the saved copy is less than a day old.
      */
-    suspend fun refresh()
+    suspend fun refresh(force: Boolean = false)
 }

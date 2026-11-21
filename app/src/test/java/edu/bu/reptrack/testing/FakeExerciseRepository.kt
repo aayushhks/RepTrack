@@ -6,6 +6,7 @@ import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 /** In-memory [ExerciseRepository] for tests. A refresh "downloads" [online]. */
 class FakeExerciseRepository(saved: List<Exercise> = emptyList()) : ExerciseRepository {
@@ -23,10 +24,17 @@ class FakeExerciseRepository(saved: List<Exercise> = emptyList()) : ExerciseRepo
     var refreshCount = 0
         private set
 
+    /** The [force] value of the last refresh call. */
+    var lastForce: Boolean? = null
+        private set
+
     override fun observeExercises(): Flow<List<Exercise>> = exercises
 
-    override suspend fun refresh() {
+    override fun observeExercise(id: Int): Flow<Exercise?> = exercises.map { list -> list.firstOrNull { it.id == id } }
+
+    override suspend fun refresh(force: Boolean) {
         refreshCount++
+        lastForce = force
         gate?.await()
         if (failRefresh) throw IOException("no connection")
         exercises.value = online
