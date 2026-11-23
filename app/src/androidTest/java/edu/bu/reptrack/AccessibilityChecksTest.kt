@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.bu.reptrack.data.auth.AuthError
 import edu.bu.reptrack.data.auth.AuthUser
+import edu.bu.reptrack.domain.exercise.Exercise
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
@@ -34,6 +35,10 @@ import edu.bu.reptrack.domain.workout.WeekActivity
 import edu.bu.reptrack.domain.workout.WorkoutSession
 import edu.bu.reptrack.ui.auth.SignInScreen
 import edu.bu.reptrack.ui.auth.SignInUiState
+import edu.bu.reptrack.ui.exercises.ExerciseDetailScreen
+import edu.bu.reptrack.ui.exercises.ExerciseDetailUiState
+import edu.bu.reptrack.ui.exercises.ExercisesScreen
+import edu.bu.reptrack.ui.exercises.ExercisesUiState
 import edu.bu.reptrack.ui.profile.ProfileScreen
 import edu.bu.reptrack.ui.profile.ProfileUiState
 import edu.bu.reptrack.ui.progress.HistoryItem
@@ -274,6 +279,68 @@ class AccessibilityChecksTest {
 
     @Test
     fun story_whileDrawing() = check { Story(RunStoryUiState(isLoading = false, run = runDetailState().run, hasRoute = true, isDrawing = true)) }
+
+    // ---- Exercises and one exercise ----
+
+    private val squat = Exercise(
+        id = 1,
+        name = "Squat",
+        description = "Stand with your feet shoulder-width apart.\nLower until your thighs are level.",
+        category = "Legs",
+        muscles = listOf("Quads", "Glutes"),
+        equipment = listOf("Barbell"),
+        imageUrl = null,
+    )
+
+    private fun exercisesState() = ExercisesUiState(
+        isLoading = false,
+        exercises = listOf(squat, squat.copy(id = 2, name = "Push-up", category = "Chest", equipment = emptyList())),
+        categories = listOf("Chest", "Legs"),
+        hasSaved = true,
+    )
+
+    @Composable
+    private fun Exercises(state: ExercisesUiState = exercisesState()) = ExercisesScreen(
+        state = state,
+        onQueryChange = {},
+        onCategoryClick = {},
+        onClearSearch = {},
+        onRetry = {},
+        onOpenExercise = {},
+    )
+
+    @Composable
+    private fun ExerciseDetail(state: ExerciseDetailUiState = ExerciseDetailUiState(isLoading = false, exercise = squat)) =
+        ExerciseDetailScreen(state = state, onBack = {})
+
+    @Test
+    fun exercises_dark() = check(dark = true) { Exercises() }
+
+    @Test
+    fun exercises_light() = check(dark = false) { Exercises() }
+
+    @Test
+    fun exercises_largestFont() = check(fontScale = 2f) { Exercises() }
+
+    @Test
+    fun exercises_offlineWithSavedList() = check { Exercises(exercisesState().copy(refreshFailed = true)) }
+
+    @Test
+    fun exercises_offlineWithNothingSaved() = check {
+        Exercises(ExercisesUiState(isLoading = false, refreshFailed = true))
+    }
+
+    @Test
+    fun exercises_noMatches() = check { Exercises(exercisesState().copy(exercises = emptyList(), query = "zzz")) }
+
+    @Test
+    fun exerciseDetail_dark() = check(dark = true) { ExerciseDetail() }
+
+    @Test
+    fun exerciseDetail_light() = check(dark = false) { ExerciseDetail() }
+
+    @Test
+    fun exerciseDetail_largestFont() = check(fontScale = 2f) { ExerciseDetail() }
 
     // ---- Profile, sign in and setup ----
 
