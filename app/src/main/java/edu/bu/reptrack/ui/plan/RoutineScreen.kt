@@ -61,7 +61,7 @@ fun RoutineRoute(
     onStart: (routineId: String) -> Unit,
     onAdd: (routineId: String) -> Unit,
     onSwap: (routineId: String, index: Int) -> Unit,
-    onOpenExercise: (exerciseId: Int) -> Unit,
+    onHowTo: (exerciseName: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RoutineViewModel = viewModel(factory = RoutineViewModel.Factory),
 ) {
@@ -76,14 +76,15 @@ fun RoutineRoute(
         onMoveUp = viewModel::moveUp,
         onMoveDown = viewModel::moveDown,
         onReset = viewModel::reset,
-        onOpenExercise = onOpenExercise,
+        onHowTo = onHowTo,
         modifier = modifier,
     )
 }
 
 /**
  * One routine and its exercises, each with its muscles and equipment from the wger catalog. Tap
- * an exercise to see how to do it; the ⋮ menu swaps, moves or removes it. Stateless.
+ * an exercise to see how to do it (photos and steps); the ⋮ menu swaps, moves or removes it.
+ * Stateless.
  */
 @Composable
 fun RoutineScreen(
@@ -96,7 +97,7 @@ fun RoutineScreen(
     onMoveUp: (index: Int) -> Unit,
     onMoveDown: (index: Int) -> Unit,
     onReset: () -> Unit,
-    onOpenExercise: (exerciseId: Int) -> Unit,
+    onHowTo: (exerciseName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -142,7 +143,7 @@ fun RoutineScreen(
                     .padding(20.dp)
                     .testTag("routine_not_found"),
             )
-            else -> RoutineContent(state, onStart, onAdd, onSwap, onRemove, onMoveUp, onMoveDown, onReset, onOpenExercise)
+            else -> RoutineContent(state, onStart, onAdd, onSwap, onRemove, onMoveUp, onMoveDown, onReset, onHowTo)
         }
     }
 }
@@ -157,7 +158,7 @@ private fun RoutineContent(
     onMoveUp: (index: Int) -> Unit,
     onMoveDown: (index: Int) -> Unit,
     onReset: () -> Unit,
-    onOpenExercise: (exerciseId: Int) -> Unit,
+    onHowTo: (exerciseName: String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -208,7 +209,7 @@ private fun RoutineContent(
                 canMoveUp = index > 0,
                 canMoveDown = index < state.exercises.lastIndex,
                 canRemove = state.canRemove,
-                onOpen = exercise.match?.let { match -> { onOpenExercise(match.id) } },
+                onOpen = { onHowTo(exercise.name) },
                 onSwap = { onSwap(index) },
                 onMoveUp = { onMoveUp(index) },
                 onMoveDown = { onMoveDown(index) },
@@ -249,19 +250,17 @@ private fun ExerciseRow(
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     canRemove: Boolean,
-    onOpen: (() -> Unit)?,
+    onOpen: () -> Unit,
     onSwap: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
 ) {
-    val openLabel = stringResource(R.string.routine_open_how_to)
-    val click = if (onOpen == null) Modifier else Modifier.clickable(onClickLabel = openLabel, role = Role.Button, onClick = onOpen)
     VoltCard(
         contentPadding = 12.dp,
         modifier = Modifier
             .clip(MaterialTheme.shapes.medium)
-            .then(click)
+            .clickable(onClickLabel = stringResource(R.string.routine_open_how_to), role = Role.Button, onClick = onOpen)
             .testTag("routine_exercise_$number"),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -371,7 +370,7 @@ private fun RoutineScreenPreview() {
             onMoveUp = {},
             onMoveDown = {},
             onReset = {},
-            onOpenExercise = {},
+            onHowTo = {},
         )
     }
 }

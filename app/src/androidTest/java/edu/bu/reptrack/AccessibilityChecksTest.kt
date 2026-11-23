@@ -19,6 +19,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.bu.reptrack.data.auth.AuthError
 import edu.bu.reptrack.data.auth.AuthUser
 import edu.bu.reptrack.domain.exercise.Exercise
+import edu.bu.reptrack.domain.exercise.ExerciseDemo
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
@@ -41,6 +42,8 @@ import edu.bu.reptrack.ui.exercises.ExerciseDetailScreen
 import edu.bu.reptrack.ui.exercises.ExerciseDetailUiState
 import edu.bu.reptrack.ui.exercises.ExercisesScreen
 import edu.bu.reptrack.ui.exercises.ExercisesUiState
+import edu.bu.reptrack.ui.howto.HowToScreen
+import edu.bu.reptrack.ui.howto.HowToUiState
 import edu.bu.reptrack.ui.plan.ExercisePickerScreen
 import edu.bu.reptrack.ui.plan.ExercisePickerUiState
 import edu.bu.reptrack.ui.plan.PlanScreen
@@ -398,7 +401,7 @@ class AccessibilityChecksTest {
         onMoveUp = {},
         onMoveDown = {},
         onReset = {},
-        onOpenExercise = {},
+        onHowTo = {},
     )
 
     @Composable
@@ -415,6 +418,34 @@ class AccessibilityChecksTest {
         onQueryChange = {},
         onPick = {},
     )
+
+    private val squatDemo = ExerciseDemo(
+        id = "Barbell_Squat",
+        name = "Barbell Squat",
+        imageUrls = listOf("https://example.invalid/0.jpg", "https://example.invalid/1.jpg"),
+        steps = listOf("Stand under the bar with your feet shoulder width apart.", "Squat down, then stand back up."),
+        primaryMuscles = listOf("quadriceps"),
+        equipment = "barbell",
+    )
+
+    @Composable
+    private fun HowTo(state: HowToUiState = HowToUiState(name = "Squat", isLoading = false, demo = squatDemo, catalog = benchPress.copy(name = "Squat"))) =
+        HowToScreen(state = state, onBack = {}, onRetry = {})
+
+    @Test
+    fun howTo_dark() = check(dark = true) { HowTo() }
+
+    @Test
+    fun howTo_light() = check(dark = false) { HowTo() }
+
+    @Test
+    fun howTo_largestFont() = check(fontScale = 2f) { HowTo() }
+
+    @Test
+    fun howTo_failed() = check { HowTo(HowToUiState(name = "Squat", isLoading = false, loadFailed = true)) }
+
+    @Test
+    fun exerciseDetail_withHowToPhotos() = check { ExerciseDetail(ExerciseDetailUiState(isLoading = false, exercise = squat, demo = squatDemo)) }
 
     @Test
     fun weekPlan_dark() = check(dark = true) { Plan() }

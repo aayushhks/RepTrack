@@ -8,13 +8,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import edu.bu.reptrack.RepTrackApplication
+import edu.bu.reptrack.data.demo.DemoRepository
 import edu.bu.reptrack.data.exercise.ExerciseRepository
+import edu.bu.reptrack.domain.exercise.DemoMatch
 import edu.bu.reptrack.domain.exercise.Exercise
+import edu.bu.reptrack.domain.exercise.ExerciseDemo
 import edu.bu.reptrack.ui.navigation.Routes
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 
 /** What the exercise detail screen shows. */
@@ -22,18 +27,39 @@ data class ExerciseDetailUiState(
     val isLoading: Boolean = true,
     /** Null once loading is over means the exercise is not saved. */
     val exercise: Exercise? = null,
+    /** The two how-to photos and the steps from Free Exercise DB, when it has this exercise. */
+    val demo: ExerciseDemo? = null,
 )
 
 /** One exercise from the saved catalog. The id comes from the route, through SavedStateHandle. */
 class ExerciseDetailViewModel(
     repository: ExerciseRepository,
     savedState: SavedStateHandle,
+    demos: DemoRepository,
 ) : ViewModel() {
 
     private val exerciseId: Int = checkNotNull(savedState[Routes.ARG_EXERCISE_ID])
 
-    val uiState: StateFlow<ExerciseDetailUiState> = repository.observeExercise(exerciseId)
-        .map { ExerciseDetailUiState(isLoading = false, exercise = it) }
+    /** Empty until the photo set is loaded; it stays empty if it can not be, and the page shows without photos. */
+    private val allDemos = flow {
+        emit(emptyList())
+        val loaded = try {
+            demos.demos()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            emptyList()
+        }
+        emit(loaded)
+    }
+
+    val uiState: StateFlow<ExerciseDetailUiState> = combine(repository.observeExercise(exerciseId), allDemos) { exercise, all ->
+        ExerciseDetailUiState(
+            isLoading = false,
+            exercise = exercise,
+            demo = exercise?.let { DemoMatch.find(it.name, all, it.equipment) },
+        )
+    }
         .catch { emit(ExerciseDetailUiState(isLoading = false)) }
         .stateIn(
             scope = viewModelScope,
@@ -48,6 +74,7 @@ class ExerciseDetailViewModel(
                 ExerciseDetailViewModel(
                     repository = container.exerciseRepository,
                     savedState = createSavedStateHandle(),
+                    demos = container.demoRepository,
                 )
             }
         }

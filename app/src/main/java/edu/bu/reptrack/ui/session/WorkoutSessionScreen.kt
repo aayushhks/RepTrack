@@ -85,6 +85,8 @@ fun WorkoutSessionRoute(
     onFinished: () -> Unit,
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Opens how to do an exercise, by its name, on top of the workout. */
+    onHowTo: (exercise: String) -> Unit = {},
     viewModel: WorkoutSessionViewModel = viewModel(factory = WorkoutSessionViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -110,6 +112,7 @@ fun WorkoutSessionRoute(
         onAdjustRest = viewModel::adjustRest,
         onSkipRest = viewModel::skipRest,
         onDismissError = viewModel::dismissError,
+        onHowTo = onHowTo,
         modifier = modifier,
     )
 
@@ -144,6 +147,7 @@ fun WorkoutSessionScreen(
     onSkipRest: () -> Unit,
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier,
+    onHowTo: (exercise: String) -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -188,6 +192,7 @@ fun WorkoutSessionScreen(
                     onRepsChange = { onRepsChange(exercise.name, it) },
                     onAddSet = { onAddSet(exercise.name) },
                     onEditSet = onEditSet,
+                    onHowTo = { onHowTo(exercise.name) },
                 )
             }
         }
@@ -285,17 +290,30 @@ private fun ExerciseCard(
     onRepsChange: (String) -> Unit,
     onAddSet: () -> Unit,
     onEditSet: (LoggedSet) -> Unit,
+    onHowTo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
     val addLabel = stringResource(R.string.session_add_set_for, exercise.name)
 
     VoltCard(modifier = modifier) {
-        Text(
-            text = exercise.name,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() },
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = exercise.name,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() },
+            )
+            // Photos and steps, for when you are not sure how it goes.
+            IconButton(onClick = onHowTo, modifier = Modifier.testTag("how_to_${exercise.name}")) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_info),
+                    contentDescription = stringResource(R.string.howto_open, exercise.name),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
 
         if (exercise.sets.isNotEmpty()) {
             Column {

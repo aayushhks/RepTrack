@@ -34,9 +34,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.exercise.Exercise
+import edu.bu.reptrack.domain.exercise.ExerciseDemo
 import edu.bu.reptrack.ui.components.Overline
 import edu.bu.reptrack.ui.components.VoltCard
 import edu.bu.reptrack.ui.components.readableWidth
+import edu.bu.reptrack.ui.howto.DemoPhotos
+import edu.bu.reptrack.ui.howto.Steps
 
 /** Connects the exercise detail to its ViewModel. */
 @Composable
@@ -85,13 +88,13 @@ fun ExerciseDetailScreen(
                 modifier = Modifier.padding(8.dp).testTag("exercise_not_found"),
             )
 
-            else -> ExerciseDetailContent(exercise)
+            else -> ExerciseDetailContent(exercise, state.demo)
         }
     }
 }
 
 @Composable
-private fun ExerciseDetailContent(exercise: Exercise) {
+private fun ExerciseDetailContent(exercise: Exercise, demo: ExerciseDemo?) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -105,17 +108,22 @@ private fun ExerciseDetailContent(exercise: Exercise) {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { heading() },
         )
-        exercise.imageUrl?.let { url ->
-            // The name above says it, so TalkBack skips the picture.
-            AsyncImage(
-                model = url,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(MaterialTheme.shapes.medium),
-            )
+        // The moving how-to photos when the photo set has this exercise, else wger's own picture.
+        if (demo != null && demo.imageUrls.isNotEmpty()) {
+            DemoPhotos(demo = demo, exerciseName = exercise.name)
+        } else {
+            exercise.imageUrl?.let { url ->
+                // The name above says it, so TalkBack skips the picture.
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(MaterialTheme.shapes.medium),
+                )
+            }
         }
         VoltCard {
             Fact(stringResource(R.string.exercises_category_label), exercise.category)
@@ -125,11 +133,20 @@ private fun ExerciseDetailContent(exercise: Exercise) {
                 exercise.equipment.joinToString(", ").ifEmpty { stringResource(R.string.exercises_bodyweight) },
             )
         }
-        if (exercise.description.isNotBlank()) {
+        if (demo != null && demo.steps.isNotEmpty()) {
+            Steps(demo.steps)
+        } else if (exercise.description.isNotBlank()) {
             VoltCard {
                 Overline(stringResource(R.string.exercises_description_label))
                 Text(exercise.description, style = MaterialTheme.typography.bodyLarge)
             }
+        }
+        if (demo != null) {
+            Text(
+                text = stringResource(R.string.howto_credit),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         Text(
             text = stringResource(R.string.exercises_credit),

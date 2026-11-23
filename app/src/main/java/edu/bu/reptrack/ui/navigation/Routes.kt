@@ -1,5 +1,7 @@
 package edu.bu.reptrack.ui.navigation
 
+import java.net.URLEncoder
+
 /** Routes that are not bottom-bar tabs. */
 object Routes {
     const val SIGN_IN = "sign_in"
@@ -49,8 +51,10 @@ object Routes {
 
     fun exerciseDetail(exerciseId: Int) = "exercise_detail/$exerciseId"
 
-    /** The same exercise page, opened from a routine, so it stays inside the Workouts tab. */
-    const val PLAN_EXERCISE = "plan_exercise/{$ARG_EXERCISE_ID}"
+    /** How to do an exercise, by its name: photos and steps. Opened from a routine or a workout. */
+    const val ARG_EXERCISE_NAME = "exerciseName"
+    const val HOW_TO = "how_to/{$ARG_EXERCISE_NAME}"
 
-    fun planExercise(exerciseId: Int) = "plan_exercise/$exerciseId"
+    /** Names can hold spaces and slashes, so they are encoded; Navigation decodes them again. */
+    fun howTo(exerciseName: String) = "how_to/" + URLEncoder.encode(exerciseName, "UTF-8").replace("+", "%20")
 }

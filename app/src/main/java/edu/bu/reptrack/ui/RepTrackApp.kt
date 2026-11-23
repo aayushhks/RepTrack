@@ -47,6 +47,7 @@ import edu.bu.reptrack.domain.auth.FirstScreen
 import edu.bu.reptrack.ui.auth.SignInRoute
 import edu.bu.reptrack.ui.exercises.ExerciseDetailRoute
 import edu.bu.reptrack.ui.exercises.ExercisesRoute
+import edu.bu.reptrack.ui.howto.HowToRoute
 import edu.bu.reptrack.ui.navigation.Routes
 import edu.bu.reptrack.ui.plan.ExercisePickerRoute
 import edu.bu.reptrack.ui.plan.PlanRoute
@@ -92,7 +93,15 @@ private fun FirstScreen.route(): String = when (this) {
 }
 
 /** Screens that take the whole screen, so the bottom bar is hidden on them. */
-private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION, Routes.RUN, Routes.RUN_STORY)
+private val fullScreenRoutes = setOf(
+    Routes.SIGN_IN,
+    Routes.GOAL_SETUP,
+    Routes.WORKOUT_SESSION,
+    Routes.RUN,
+    Routes.RUN_STORY,
+    // Opened from a workout, which is full screen too.
+    Routes.HOW_TO,
+)
 
 /**
  * Switches tabs the way the bottom bar does. Android's rule: Workouts home is always at the
@@ -277,7 +286,7 @@ fun RepTrackNavHost(
                             onStart = { routineId -> navController.navigate(Routes.workoutSession(routineId)) },
                             onAdd = { routineId -> navController.navigate(Routes.routinePick(routineId)) },
                             onSwap = { routineId, index -> navController.navigate(Routes.routinePick(routineId, index)) },
-                            onOpenExercise = { exerciseId -> navController.navigate(Routes.planExercise(exerciseId)) },
+                            onHowTo = { name -> navController.navigate(Routes.howTo(name)) },
                         )
                     }
                     // The catalog, to add an exercise to a routine or swap one. It closes itself once saved.
@@ -295,14 +304,14 @@ fun RepTrackNavHost(
                     ) {
                         ExercisePickerRoute(onBack = { navController.popBackStack() })
                     }
-                    // The exercise page from the Exercises tab, opened from a routine, so the Workouts tab stays selected.
+                    // How to do an exercise, by name: photos and steps. From a routine or during a workout.
                     composable(
-                        route = Routes.PLAN_EXERCISE,
-                        arguments = listOf(navArgument(Routes.ARG_EXERCISE_ID) { type = NavType.IntType }),
+                        route = Routes.HOW_TO,
+                        arguments = listOf(navArgument(Routes.ARG_EXERCISE_NAME) { type = NavType.StringType }),
                         enterTransition = { slideInFromRight() },
                         popExitTransition = { slideOutToRight() },
                     ) {
-                        ExerciseDetailRoute(onBack = { navController.popBackStack() })
+                        HowToRoute(onBack = { navController.popBackStack() })
                     }
                     // A walk or run, full screen like a workout. The recording itself outlives this
                     // screen, so leaving it by mistake asks first instead of losing the run.
@@ -338,6 +347,7 @@ fun RepTrackNavHost(
                                 navController.navigateToTab(TopLevelDestination.PROGRESS)
                             },
                             onLeave = { navController.popBackStack() },
+                            onHowTo = { name -> navController.navigate(Routes.howTo(name)) },
                         )
                     }
                 }

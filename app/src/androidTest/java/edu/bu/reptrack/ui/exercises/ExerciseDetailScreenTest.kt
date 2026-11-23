@@ -5,8 +5,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.bu.reptrack.domain.exercise.Exercise
+import edu.bu.reptrack.domain.exercise.ExerciseDemo
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -58,6 +60,22 @@ class ExerciseDetailScreenTest {
     fun unknownExercise_saysSo() {
         show(ExerciseDetailUiState(isLoading = false, exercise = null))
         composeRule.onNodeWithTag("exercise_not_found").assertIsDisplayed()
+    }
+
+    @Test
+    fun withHowToPhotos_showsThemAndTheSteps() {
+        val demo = ExerciseDemo(
+            id = "Barbell_Squat",
+            name = "Barbell Squat",
+            imageUrls = listOf("https://example.invalid/0.jpg", "https://example.invalid/1.jpg"),
+            steps = listOf("Stand under the bar.", "Squat down."),
+            primaryMuscles = listOf("quadriceps"),
+            equipment = "barbell",
+        )
+        show(ExerciseDetailUiState(isLoading = false, exercise = squat, demo = demo))
+
+        composeRule.onNodeWithTag("demo_photos").assertIsDisplayed()
+        composeRule.onNodeWithText("Stand under the bar.").performScrollTo().assertIsDisplayed()
     }
 
     @Test

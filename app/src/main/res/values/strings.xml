@@ -114,6 +114,18 @@
     <string name="picker_all">All exercises</string>
     <!-- Example: "Add “Face pull” as your own exercise" -->
     <string name="picker_custom">Add “%1$s” as your own exercise</string>
+    <!-- How to do an exercise: two photos and the steps, from Free Exercise DB -->
+    <!-- Read by TalkBack for the photos. Example: "Photos of Bench press, from the start position to the end position" -->
+    <string name="howto_photos_description">Photos of %1$s, from the start position to the end position</string>
+    <string name="howto_start">Start</string>
+    <string name="howto_end">End</string>
+    <string name="howto_steps">How to do it</string>
+    <string name="howto_loading">Loading the how-to photos…</string>
+    <string name="howto_no_photos">There are no photos for this exercise yet.</string>
+    <string name="howto_failed">The how-to photos could not be loaded. Check your connection, then try again.</string>
+    <string name="howto_credit">Photos and steps from Free Exercise DB (public domain)</string>
+    <!-- Example: "How to do Squat" -->
+    <string name="howto_open">How to do %1$s</string>
     <string name="picker_catalog_empty">The exercise catalog is not on your phone yet. Open the Exercises tab with internet, or type a name to add your own.</string>
 
     <!-- Workout session -->

@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -34,6 +35,7 @@ class WorkoutSessionTest {
     private val repository = FakeWorkoutRepository()
     private val finished = AtomicBoolean(false)
     private val left = AtomicBoolean(false)
+    private var howTo: String? = null
 
     private fun showSession() {
         composeRule.setContent {
@@ -44,6 +46,7 @@ class WorkoutSessionTest {
                 WorkoutSessionRoute(
                     onFinished = { finished.set(true) },
                     onLeave = { left.set(true) },
+                    onHowTo = { howTo = it },
                     viewModel = viewModel,
                 )
             }
@@ -71,6 +74,15 @@ class WorkoutSessionTest {
 
         composeRule.waitUntil(timeoutMillis = 5_000) { finished.get() }
         assertNotNull(repository.allSessions.single().finishedAt)
+    }
+
+    @Test
+    fun theInfoButton_opensHowToDoTheExercise() {
+        showSession()
+
+        composeRule.onNodeWithContentDescription("How to do Squat").performScrollTo().performClick()
+
+        assertEquals("Squat", howTo)
     }
 
     @Test

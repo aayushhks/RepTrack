@@ -30,7 +30,7 @@ class RoutineScreenTest {
     private var removed: Int? = null
     private var movedDown: Int? = null
     private var reset = false
-    private var openedExercise: Int? = null
+    private var howTo: String? = null
 
     private val bench = Exercise(73, "Bench Press", "", "Chest", listOf("Chest", "Triceps"), listOf("Barbell"), null)
 
@@ -52,7 +52,7 @@ class RoutineScreenTest {
                     onMoveUp = {},
                     onMoveDown = { movedDown = it },
                     onReset = { reset = true },
-                    onOpenExercise = { openedExercise = it },
+                    onHowTo = { howTo = it },
                 )
             }
         }
@@ -68,12 +68,13 @@ class RoutineScreenTest {
     }
 
     @Test
-    fun tappingAnExerciseInTheCatalog_opensItsPage() {
+    fun tappingAnExercise_opensHowToDoIt_evenWhenTheCatalogDoesNotHaveIt() {
         show(state())
 
         composeRule.onNodeWithTag("routine_exercise_1").performClick()
-
-        assertEquals(73, openedExercise)
+        assertEquals("Bench press", howTo)
+        composeRule.onNodeWithTag("routine_exercise_2").performClick()
+        assertEquals("Barbell row", howTo)
     }
 
     @Test
