@@ -118,4 +118,20 @@ class ExercisePickerViewModelTest {
         assertTrue(viewModel.uiState.value.saveFailed)
         assertFalse(viewModel.uiState.value.done)
     }
+
+    @Test
+    fun addingToAnEmptyOwnRoutine() = runTest {
+        plan.ownRoutines.value = listOf("custom_1" to "Push day")
+        val savedState = SavedStateHandle(mapOf(Routes.ARG_ROUTINE_ID to "custom_1", Routes.ARG_REPLACE_INDEX to -1))
+        val viewModel = ExercisePickerViewModel(plan, catalog, savedState)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+
+        assertEquals("Push day", viewModel.uiState.value.routineName)
+        assertEquals(4, viewModel.uiState.value.results.size)
+
+        viewModel.pick("Dips")
+
+        assertEquals(listOf("Dips"), plan.edits.value["custom_1"])
+        assertTrue(viewModel.uiState.value.done)
+    }
 }

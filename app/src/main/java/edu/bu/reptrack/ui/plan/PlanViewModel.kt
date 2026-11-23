@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import edu.bu.reptrack.RepTrackApplication
+import edu.bu.reptrack.data.plan.NewRoutine
 import edu.bu.reptrack.data.plan.PlanRepository
 import edu.bu.reptrack.data.profile.ProfileRepository
 import edu.bu.reptrack.data.run.RunRepository
@@ -15,8 +16,10 @@ import edu.bu.reptrack.data.workout.WorkoutRepository
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
+import edu.bu.reptrack.domain.workout.CustomPlan
 import edu.bu.reptrack.domain.workout.PlanDay
 import edu.bu.reptrack.domain.workout.PlanSnapshot
+import edu.bu.reptrack.domain.workout.RoutineName
 import edu.bu.reptrack.domain.workout.WorkoutTemplate
 import edu.bu.reptrack.ui.navigation.Routes
 import java.time.DayOfWeek
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Everything the week plan screen needs to draw itself. */
@@ -40,13 +44,24 @@ data class PlanUiState(
     /** Monday to Sunday. */
     val week: List<PlanDay> = emptyList(),
     val routines: List<WorkoutTemplate> = emptyList(),
-    /** The last change of days was not saved. */
+    /** The user made their own plan: their routines, each on the days they chose. */
+    val isCustom: Boolean = false,
+    /** On the user's own plan, the routine id for each training day. */
+    val schedule: Map<DayOfWeek, String> = emptyMap(),
+    /** The last change was not saved. */
     val saveFailed: Boolean = false,
-)
+    /** A routine was just made: the screen opens it, so the user can add exercises. */
+    val createdRoutineId: String? = null,
+) {
+    /** A plan keeps at least one routine. */
+    val canDeleteRoutine: Boolean get() = routines.size > 1
+}
 
 /**
  * The week plan: which days the user trains, and which routine goes on each day this week.
  * Uses the same [PlanSnapshot] as the Workouts tab, so both always agree on what is next.
+ * The user can also make their own plan here: from the suggested one or from scratch, with
+ * their own routines, each on the days they choose.
  */
 class PlanViewModel(
     profileRepository: ProfileRepository,
@@ -62,7 +77,21 @@ class PlanViewModel(
     private val place: TrainingPlace? = savedState.get<String>(Routes.ARG_PLACE)
         ?.let { name -> TrainingPlace.entries.firstOrNull { it.name == name } }
 
-    private val saveFailed = MutableStateFlow(false)
+    private data class Local(val saveFailed: Boolean = false, val createdRoutineId: String? = null)
+
+    private val local = MutableStateFlow(Local())
+
+    private data class Changes(
+        val edits: Map<String, List<String>>,
+        val chosenDays: Set<DayOfWeek>,
+        val custom: CustomPlan,
+    )
+
+    private val changes = combine(
+        planRepository.observeRoutineEdits().catch { emit(emptyMap()) },
+        planRepository.observeTrainingDays().catch { emit(emptySet()) },
+        planRepository.observeCustomPlan().catch { emit(CustomPlan()) },
+    ) { edits, chosenDays, custom -> Changes(edits, chosenDays, custom) }
 
     val uiState: StateFlow<PlanUiState> = combine(
         combine(
@@ -70,10 +99,9 @@ class PlanViewModel(
             workouts.observeHistory().catch { emit(emptyList()) },
             runs.observeRuns().catch { emit(emptyList()) },
         ) { profile, history, runList -> Triple(profile, history, runList) },
-        planRepository.observeRoutineEdits().catch { emit(emptyMap()) },
-        planRepository.observeTrainingDays().catch { emit(emptySet()) },
-        saveFailed,
-    ) { (profile, history, runList), edits, chosenDays, failed ->
+        changes,
+        local,
+    ) { (profile, history, runList), (edits, chosenDays, custom), mine ->
         val snapshot = PlanSnapshot.of(
             goal = profile?.goal ?: FitnessGoal.STAY_FIT,
             place = place ?: profile?.place ?: TrainingPlace.GYM,
@@ -83,6 +111,7 @@ class PlanViewModel(
             runTimes = runList.map { it.finishedAt },
             nowMillis = now(),
             zone = zone,
+            custom = custom,
         )
         PlanUiState(
             isLoading = false,
@@ -91,7 +120,10 @@ class PlanViewModel(
             customDays = snapshot.customDays,
             week = snapshot.week,
             routines = snapshot.routines,
-            saveFailed = failed,
+            isCustom = snapshot.isCustom,
+            schedule = if (snapshot.isCustom) custom.schedule.filterValues { id -> custom.routines.any { it.id == id } } else emptyMap(),
+            saveFailed = mine.saveFailed,
+            createdRoutineId = mine.createdRoutineId,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -101,6 +133,8 @@ class PlanViewModel(
 
     /** Turns a training day on or off. The last day can not be turned off: a plan needs one. */
     fun toggleDay(day: DayOfWeek) {
+        // The user's own plan sets its days with [setDayRoutine] instead.
+        if (uiState.value.isCustom) return
         val current = uiState.value.trainingDays
         val changed = if (day in current) current - day else current + day
         if (changed.isEmpty()) return
@@ -110,15 +144,85 @@ class PlanViewModel(
     /** Back to the plan's default days. */
     fun resetDays() = save { planRepository.setTrainingDays(emptySet()) }
 
+    // ---- The user's own plan ----
+
+    /** Makes the suggested plan the user's own: the same routines and exercises, on the same days. */
+    fun startFromSuggested() {
+        val state = uiState.value
+        if (state.isCustom || state.routines.isEmpty()) return
+        val routines = state.routines.map { NewRoutine(it.name, it.exercises) }
+        save { planRepository.startCustomPlan(routines, CustomPlan.rotation(routines.size, state.trainingDays)) }
+    }
+
+    /** Starts an empty plan with one routine called [name], on the current training days, and opens it. */
+    fun startFromScratch(name: String) {
+        val clean = RoutineName.clean(name) ?: return
+        val days = uiState.value.trainingDays
+        save {
+            val ids = planRepository.startCustomPlan(listOf(NewRoutine(clean)), CustomPlan.rotation(1, days))
+            local.update { it.copy(createdRoutineId = ids.firstOrNull()) }
+        }
+    }
+
+    /** Adds an empty routine called [name] and opens it. It goes on no day until the user picks one. */
+    fun addRoutine(name: String) {
+        val clean = RoutineName.clean(name) ?: return
+        if (!uiState.value.isCustom) return
+        save {
+            val id = planRepository.addRoutine(NewRoutine(clean))
+            local.update { it.copy(createdRoutineId = id) }
+        }
+    }
+
+    fun renameRoutine(id: String, name: String) {
+        val clean = RoutineName.clean(name) ?: return
+        val state = uiState.value
+        if (!state.isCustom || state.routines.none { it.id == id && it.name != clean }) return
+        save { planRepository.renameRoutine(id, clean) }
+    }
+
+    /** Deletes a routine; its days become days off. The last routine can not be deleted. */
+    fun deleteRoutine(id: String) {
+        val state = uiState.value
+        if (!state.isCustom || !state.canDeleteRoutine || state.routines.none { it.id == id }) return
+        val remaining = state.routines.map { it.id } - id
+        save { planRepository.deleteRoutine(id, CustomPlan.scheduleAfterDelete(state.schedule, id, remaining)) }
+    }
+
+    /** Puts a routine on [day], or makes it a day off when [routineId] is null. The last training day stays. */
+    fun setDayRoutine(day: DayOfWeek, routineId: String?) {
+        val state = uiState.value
+        if (!state.isCustom) return
+        val changed = if (routineId == null) {
+            state.schedule - day
+        } else {
+            if (state.routines.none { it.id == routineId }) return
+            state.schedule + (day to routineId)
+        }
+        if (changed.isEmpty() || changed == state.schedule) return
+        save { planRepository.setSchedule(changed) }
+    }
+
+    /** Back to the suggested plan. The user's own routines are deleted. */
+    fun useSuggestedPlan() {
+        if (!uiState.value.isCustom) return
+        save { planRepository.clearCustomPlan() }
+    }
+
+    /** The screen opened the new routine. */
+    fun onCreatedRoutineOpened() {
+        local.update { it.copy(createdRoutineId = null) }
+    }
+
     private fun save(block: suspend () -> Unit) {
-        saveFailed.value = false
+        local.update { it.copy(saveFailed = false) }
         viewModelScope.launch {
             try {
                 block()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                saveFailed.value = true
+                local.update { it.copy(saveFailed = true) }
             }
         }
     }

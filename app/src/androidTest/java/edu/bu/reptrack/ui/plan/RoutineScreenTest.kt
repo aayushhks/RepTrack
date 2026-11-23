@@ -121,4 +121,14 @@ class RoutineScreenTest {
         show(state())
         composeRule.onNodeWithTag("routine_reset").assertDoesNotExist()
     }
+
+    @Test
+    fun emptyRoutine_saysSo_andCannotStart() {
+        show(RoutineUiState(isLoading = false, routineId = "custom_1", name = "Push day", exercises = emptyList()))
+
+        composeRule.onNodeWithTag("routine_empty").assertIsDisplayed()
+        composeRule.onNodeWithTag("routine_start").assertIsNotEnabled()
+        composeRule.onNodeWithTag("routine_add").performClick()
+        assertTrue(added)
+    }
 }

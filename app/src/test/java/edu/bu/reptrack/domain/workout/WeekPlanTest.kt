@@ -1,9 +1,13 @@
 package edu.bu.reptrack.domain.workout
 
+import edu.bu.reptrack.domain.profile.FitnessGoal
+import edu.bu.reptrack.domain.profile.TrainingPlace
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WeekPlanTest {
@@ -82,5 +86,75 @@ class WeekPlanTest {
         val saturday = LocalDate.parse("2026-11-21")
         val week = WeekPlan.build(saturday, monWedFri, listOf(a, b), next = a, done = listOf(WeekPlan.Done(saturday, "b", "Full body B")), runDates = emptySet())
         assertEquals(PlanDayStatus.DONE, week[5].status)
+    }
+
+    // ---- The user's own plan: a routine for each day ----
+
+    private val push = WorkoutTemplate("custom_1", "Push", listOf("Bench press"))
+    private val legs = WorkoutTemplate("custom_2", "Legs", listOf("Squat"))
+    private val ownWeek = mapOf(DayOfWeek.MONDAY to push, DayOfWeek.WEDNESDAY to legs, DayOfWeek.SATURDAY to push)
+
+    @Test
+    fun ownPlan_eachDayHasItsRoutine() {
+        val week = WeekPlan.buildScheduled(
+            today = today,
+            schedule = ownWeek,
+            done = emptyList(),
+            runDates = setOf(LocalDate.parse("2026-11-17")),
+        )
+
+        assertEquals(PlanDayStatus.MISSED, week[0].status)
+        assertNull(week[0].routineName)
+        assertEquals(PlanDayStatus.RAN, week[1].status)
+        assertEquals(PlanDayStatus.TODAY, week[2].status)
+        assertEquals("Legs", week[2].routineName)
+        assertEquals(PlanDayStatus.REST, week[3].status)
+        assertEquals(PlanDayStatus.PLANNED, week[5].status)
+        assertEquals("Push", week[5].routineName)
+        assertEquals(PlanDayStatus.REST, week[6].status)
+    }
+
+    @Test
+    fun ownPlan_doneDaysShowWhatWasDone() {
+        val week = WeekPlan.buildScheduled(today, ownWeek, listOf(WeekPlan.Done(LocalDate.parse("2026-11-16"), "custom_1", "Push")), emptySet())
+        assertEquals(PlanDayStatus.DONE, week[0].status)
+        assertEquals("Push", week[0].routineName)
+    }
+
+    @Test
+    fun ownPlan_upNext_isTodays_untilItIsDone_thenTheNextDays() {
+        assertEquals(legs, WeekPlan.nextScheduled(today, ownWeek, doneToday = false))
+        assertEquals(push, WeekPlan.nextScheduled(today, ownWeek, doneToday = true))
+        // Thursday: nothing until Saturday.
+        assertEquals(push, WeekPlan.nextScheduled(today.plusDays(1), ownWeek, doneToday = false))
+        assertNull(WeekPlan.nextScheduled(today, emptyMap(), doneToday = false))
+    }
+
+    @Test
+    fun ownPlan_oneDayAWeek_findsThatDayNextWeek() {
+        val onlyWednesday = mapOf(DayOfWeek.WEDNESDAY to legs)
+        assertEquals(legs, WeekPlan.nextScheduled(today, onlyWednesday, doneToday = true))
+    }
+
+    @Test
+    fun snapshot_usesTheOwnPlan_whenThereIsOne() {
+        val custom = CustomPlan(listOf(push, legs), mapOf(DayOfWeek.MONDAY to "custom_1", DayOfWeek.WEDNESDAY to "custom_2"))
+        val snapshot = PlanSnapshot.of(
+            goal = FitnessGoal.BUILD_MUSCLE,
+            place = TrainingPlace.GYM,
+            edits = emptyMap(),
+            chosenDays = setOf(DayOfWeek.SUNDAY),
+            history = emptyList(),
+            runTimes = emptyList(),
+            nowMillis = today.atTime(12, 0).toInstant(ZoneOffset.UTC).toEpochMilli(),
+            zone = ZoneOffset.UTC,
+            custom = custom,
+        )
+
+        assertTrue(snapshot.isCustom)
+        assertEquals(listOf(push, legs), snapshot.routines)
+        assertEquals(legs, snapshot.next)
+        assertEquals(setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY), snapshot.trainingDays)
+        assertEquals("Legs", snapshot.week[2].routineName)
     }
 }

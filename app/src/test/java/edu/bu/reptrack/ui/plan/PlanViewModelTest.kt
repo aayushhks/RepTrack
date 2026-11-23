@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -100,5 +101,129 @@ class PlanViewModelTest {
         viewModel.toggleDay(DayOfWeek.SUNDAY)
 
         assertTrue(viewModel.uiState.value.saveFailed)
+    }
+
+    // ---- The user's own plan ----
+
+    private suspend fun TestScope.openWithProfile(): PlanViewModel {
+        // Lose weight at the gym: full body A and B on Monday, Wednesday and Friday.
+        profiles.saveProfile(UserProfile(178f, 82f, 76f, FitnessGoal.LOSE_WEIGHT, TrainingPlace.GYM))
+        return open()
+    }
+
+    @Test
+    fun startFromSuggested_copiesTheRoutines_andGivesThemTheDaysInTurn() = runTest {
+        plan.edits.value = mapOf("full_body_a" to listOf("Squat", "Dips"))
+        val viewModel = openWithProfile()
+
+        viewModel.startFromSuggested()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isCustom)
+        assertEquals(listOf("Full body A", "Full body B"), state.routines.map { it.name })
+        assertEquals(listOf("Squat", "Dips"), state.routines[0].exercises)
+        assertEquals(
+            mapOf(DayOfWeek.MONDAY to "custom_1", DayOfWeek.WEDNESDAY to "custom_2", DayOfWeek.FRIDAY to "custom_1"),
+            state.schedule,
+        )
+        // Wednesday is today.
+        assertEquals("Full body B", state.week[2].routineName)
+    }
+
+    @Test
+    fun startFromScratch_makesOneEmptyRoutineOnTheTrainingDays_andOpensIt() = runTest {
+        val viewModel = openWithProfile()
+
+        viewModel.startFromScratch("  Push day ")
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("Push day"), state.routines.map { it.name })
+        assertTrue(state.routines.single().exercises.isEmpty())
+        assertEquals(setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY), state.schedule.keys)
+        assertEquals("custom_1", state.createdRoutineId)
+
+        viewModel.onCreatedRoutineOpened()
+        assertNull(viewModel.uiState.value.createdRoutineId)
+    }
+
+    @Test
+    fun blankNames_areIgnored() = runTest {
+        val viewModel = openWithProfile()
+        viewModel.startFromScratch("   ")
+        assertFalse(viewModel.uiState.value.isCustom)
+    }
+
+    @Test
+    fun addRenameAndDelete_routines() = runTest {
+        val viewModel = openWithProfile()
+        viewModel.startFromScratch("Push")
+
+        viewModel.addRoutine("Pull")
+        assertEquals("custom_2", viewModel.uiState.value.createdRoutineId)
+        viewModel.renameRoutine("custom_2", "Pull and core")
+        assertEquals(listOf("Push", "Pull and core"), viewModel.uiState.value.routines.map { it.name })
+
+        viewModel.deleteRoutine("custom_2")
+        assertEquals(listOf("Push"), viewModel.uiState.value.routines.map { it.name })
+
+        // The last routine stays.
+        viewModel.deleteRoutine("custom_1")
+        assertEquals(1, viewModel.uiState.value.routines.size)
+        assertFalse(viewModel.uiState.value.canDeleteRoutine)
+    }
+
+    @Test
+    fun deletingARoutine_makesItsDaysRestDays() = runTest {
+        val viewModel = openWithProfile()
+        viewModel.startFromSuggested()
+
+        viewModel.deleteRoutine("custom_1")
+
+        assertEquals(mapOf(DayOfWeek.WEDNESDAY to "custom_2"), viewModel.uiState.value.schedule)
+    }
+
+    @Test
+    fun pickingARoutineForADay_orARestDay_butNeverTheLastTrainingDay() = runTest {
+        val viewModel = openWithProfile()
+        viewModel.startFromScratch("Push")
+        viewModel.addRoutine("Legs")
+
+        viewModel.setDayRoutine(DayOfWeek.SATURDAY, "custom_2")
+        viewModel.setDayRoutine(DayOfWeek.MONDAY, null)
+        viewModel.setDayRoutine(DayOfWeek.WEDNESDAY, "custom_2")
+
+        assertEquals(
+            mapOf(DayOfWeek.WEDNESDAY to "custom_2", DayOfWeek.FRIDAY to "custom_1", DayOfWeek.SATURDAY to "custom_2"),
+            viewModel.uiState.value.schedule,
+        )
+        assertEquals(3, viewModel.uiState.value.trainingDays.size)
+
+        viewModel.setDayRoutine(DayOfWeek.WEDNESDAY, null)
+        viewModel.setDayRoutine(DayOfWeek.FRIDAY, null)
+        viewModel.setDayRoutine(DayOfWeek.SATURDAY, null)
+        assertEquals(mapOf(DayOfWeek.SATURDAY to "custom_2"), viewModel.uiState.value.schedule)
+    }
+
+    @Test
+    fun useSuggestedPlan_deletesTheOwnPlan() = runTest {
+        val viewModel = openWithProfile()
+        viewModel.startFromSuggested()
+
+        viewModel.useSuggestedPlan()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isCustom)
+        assertEquals(listOf("full_body_a", "full_body_b"), state.routines.map { it.id })
+        assertTrue(plan.ownRoutines.value.isEmpty())
+    }
+
+    @Test
+    fun onTheOwnPlan_theSuggestedDaysAreLeftAlone() = runTest {
+        val viewModel = openWithProfile()
+        viewModel.startFromSuggested()
+
+        viewModel.toggleDay(DayOfWeek.SUNDAY)
+
+        assertTrue(plan.days.value.isEmpty())
     }
 }

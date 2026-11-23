@@ -16,6 +16,7 @@ import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.WeekActivity
+import edu.bu.reptrack.domain.workout.WorkoutTemplate
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -159,5 +160,24 @@ class WorkoutsScreenTest {
         assertEquals("upper", openedRoutine)
         composeRule.onNodeWithTag("open_lower").performScrollTo().performClick()
         assertEquals("lower", openedRoutine)
+    }
+
+    @Test
+    fun ownPlan_saysMyPlan_hidesGymOrHome_andEmptyRoutinesHaveNoStart() {
+        val push = WorkoutTemplate("custom_1", "Push", listOf("Bench press"))
+        val legs = WorkoutTemplate("custom_2", "Legs", emptyList())
+        show(
+            stateFor(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)).copy(
+                routines = listOf(push, legs),
+                nextRoutine = push,
+                isCustomPlan = true,
+            ),
+        )
+
+        composeRule.onNodeWithTag("plan_name").assertTextEquals("My plan")
+        composeRule.onNodeWithText("Home").assertDoesNotExist()
+        composeRule.onNodeWithTag("start_custom_1").assertExists()
+        composeRule.onNodeWithTag("open_custom_2").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("start_custom_2").assertDoesNotExist()
     }
 }

@@ -14,8 +14,9 @@ import edu.bu.reptrack.domain.exercise.CatalogMatch
 import edu.bu.reptrack.domain.exercise.Exercise
 import edu.bu.reptrack.domain.exercise.filterExercises
 import edu.bu.reptrack.domain.workout.RoutineEdits
+import edu.bu.reptrack.domain.workout.CustomPlan
 import edu.bu.reptrack.domain.workout.StarterRoutines
-import edu.bu.reptrack.domain.workout.withEdits
+import edu.bu.reptrack.domain.workout.findRoutine
 import edu.bu.reptrack.ui.navigation.Routes
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,7 +62,6 @@ class ExercisePickerViewModel(
 
     /** The exercise to swap, by its place in the routine. -1: add a new one. */
     private val replaceIndex: Int = savedState.get<Int>(Routes.ARG_REPLACE_INDEX) ?: -1
-    private val builtIn = StarterRoutines.find(routineId)
 
     private val query = savedState.getStateFlow(KEY_QUERY, "")
 
@@ -70,15 +70,20 @@ class ExercisePickerViewModel(
     private val local = MutableStateFlow(Local())
 
     /** The routine's exercises right now, for saving. */
-    private var current: List<String> = builtIn?.exercises.orEmpty()
+    private var current: List<String> = StarterRoutines.find(routineId)?.exercises.orEmpty()
+
+    private val routine = combine(
+        planRepository.observeRoutineEdits().catch { emit(emptyMap()) },
+        planRepository.observeCustomPlan().catch { emit(CustomPlan()) },
+    ) { edits, custom -> findRoutine(routineId, edits, custom) }
 
     val uiState: StateFlow<ExercisePickerUiState> = combine(
-        planRepository.observeRoutineEdits().catch { emit(emptyMap()) },
+        routine,
         catalog.observeExercises().catch { emit(emptyList()) },
         query,
         local,
-    ) { edits, all, text, picked ->
-        val exercises = builtIn?.withEdits(edits)?.exercises.orEmpty()
+    ) { found, all, text, picked ->
+        val exercises = found?.exercises.orEmpty()
         current = exercises
         val replacing = exercises.getOrNull(replaceIndex)
         val inRoutine = exercises.map(CatalogMatch::squash).toSet()
@@ -96,7 +101,7 @@ class ExercisePickerViewModel(
         }
         ExercisePickerUiState(
             isLoading = false,
-            routineName = builtIn?.name.orEmpty(),
+            routineName = found?.name.orEmpty(),
             replacing = replacing,
             query = text,
             sameMuscles = sameMuscles,

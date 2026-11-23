@@ -169,6 +169,7 @@ private fun RoutineContent(
     ) {
         Button(
             onClick = onStart,
+            enabled = state.canStart,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
@@ -200,6 +201,14 @@ private fun RoutineContent(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("routine_catalog_empty"),
+            )
+        }
+        if (state.exercises.isEmpty()) {
+            Text(
+                text = stringResource(R.string.routine_empty),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("routine_empty"),
             )
         }
         state.exercises.forEachIndexed { index, exercise ->

@@ -154,7 +154,8 @@ fun WorkoutsScreen(
             }
         }
 
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        // The user's own plan is the same at the gym and at home, so there is nothing to switch.
+        if (!state.isCustomPlan) SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             TrainingPlace.entries.forEachIndexed { index, place ->
                 SegmentedButton(
                     selected = state.place == place,
@@ -179,7 +180,7 @@ fun WorkoutsScreen(
         val next = state.nextRoutine
         if (profile != null && next != null) {
             TodayCard(
-                plan = state.plan,
+                planName = if (state.isCustomPlan) stringResource(R.string.plan_my_plan) else stringResource(state.plan.type.labelRes()),
                 daysPerWeek = state.trainingDays.size,
                 routine = next,
                 workoutsThisWeek = state.workoutsThisWeek,
@@ -356,7 +357,7 @@ private fun WeekStrip(week: List<DayActivity>) {
 /** The one loud element on the tab: today's workout on a lime card, with Start. */
 @Composable
 private fun TodayCard(
-    plan: StarterPlan,
+    planName: String,
     daysPerWeek: Int,
     routine: WorkoutTemplate,
     workoutsThisWeek: Int,
@@ -384,7 +385,7 @@ private fun TodayCard(
                 )
             }
             Text(
-                text = stringResource(plan.type.labelRes()),
+                text = planName,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier
                     .semantics { heading() }
@@ -428,7 +429,8 @@ private fun TodayCard(
                     Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, modifier = Modifier.size(18.dp))
                 }
                 // Ink pill with lime text: the one place the flipped colors are used.
-                Button(
+                // A new routine of the user's own has no exercises yet: nothing to start.
+                if (routine.exercises.isNotEmpty()) Button(
                     onClick = onStart,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = onHero,
@@ -493,7 +495,8 @@ private fun RoutineRow(routine: WorkoutTemplate, onStart: () -> Unit, onOpen: ()
         subtitle = if (routine.isEdited) stringResource(R.string.plan_routine_summary, count, stringResource(R.string.plan_edited)) else count,
         startLabel = startLabel,
         startTag = "start_${routine.id}",
-        onStart = onStart,
+        // A new routine of the user's own has no exercises yet: nothing to start.
+        onStart = onStart.takeIf { routine.exercises.isNotEmpty() },
         onOpen = onOpen,
         openTag = "open_${routine.id}",
     )

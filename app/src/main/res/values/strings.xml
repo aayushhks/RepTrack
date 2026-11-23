@@ -92,6 +92,33 @@
     <!-- Example: "5 exercises · Edited" -->
     <string name="plan_routine_summary">%1$s · %2$s</string>
     <string name="plan_save_failed">That change was not saved. Please try again.</string>
+    <!-- The user's own plan -->
+    <string name="plan_my_plan">My plan</string>
+    <string name="plan_your_week">Your week</string>
+    <string name="plan_your_week_message">Tap a day to pick its routine, or make it a rest day. It repeats every week.</string>
+    <string name="plan_choose_for_day">choose the routine for %1$s</string>
+    <string name="plan_day_off">Rest day</string>
+    <string name="plan_new_routine">New routine</string>
+    <string name="plan_use_suggested">Go back to the suggested plan</string>
+    <string name="plan_make_own_title">Make your own plan</string>
+    <string name="plan_make_own_message">Name your own routines, pick their exercises and choose which one you do each day.</string>
+    <string name="plan_start_from_suggested">Start from this plan</string>
+    <string name="plan_start_from_scratch">Start from scratch</string>
+    <string name="plan_rename">Rename</string>
+    <string name="plan_delete">Delete</string>
+    <string name="plan_first_routine_title">Name your first routine</string>
+    <string name="plan_create">Create</string>
+    <string name="plan_rename_title">Rename routine</string>
+    <string name="plan_save">Save</string>
+    <string name="plan_cancel">Cancel</string>
+    <string name="plan_delete_title">Delete %1$s?</string>
+    <string name="plan_delete_message">Its days become rest days. Workouts you already did stay in your history.</string>
+    <string name="plan_use_suggested_title">Go back to the suggested plan?</string>
+    <string name="plan_use_suggested_message">Your own routines and their days will be deleted. Workouts you already did stay in your history.</string>
+    <string name="plan_use_suggested_confirm">Delete my plan</string>
+    <string name="plan_routine_name">Routine name</string>
+    <string name="plan_routine_name_hint">Push day</string>
+    <string name="plan_routine_name_count">%1$d / %2$d</string>
     <string name="routine_not_found">This routine is not in your plan.</string>
     <string name="routine_exercises">Exercises</string>
     <string name="routine_not_in_catalog">Not in the exercise catalog</string>
@@ -103,6 +130,7 @@
     <string name="routine_move_down">Move down</string>
     <string name="routine_remove">Remove</string>
     <string name="routine_add">Add exercise</string>
+    <string name="routine_empty">No exercises yet. Add the first one to start this routine.</string>
     <string name="routine_reset">Reset to the original exercises</string>
     <string name="routine_start">Start workout</string>
     <string name="routine_credit">Exercise info from wger.de (CC BY-SA 4.0)</string>

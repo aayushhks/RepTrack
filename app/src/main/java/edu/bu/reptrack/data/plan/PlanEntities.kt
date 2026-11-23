@@ -20,3 +20,19 @@ data class RoutineExerciseEntity(
 data class TrainingDayEntity(
     @PrimaryKey @ColumnInfo(name = "day_of_week") val dayOfWeek: Int,
 )
+
+/** One of the user's own routines. Its exercises are rows in routine_exercises under the same id. */
+@Entity(tableName = "custom_routines")
+data class CustomRoutineEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    /** Where it shows in the list of routines. */
+    val position: Int,
+)
+
+/** On the user's own plan, the routine for one day of the week, 1 = Monday to 7 = Sunday. No row: a day off. */
+@Entity(tableName = "plan_schedule")
+data class ScheduleDayEntity(
+    @PrimaryKey @ColumnInfo(name = "day_of_week") val dayOfWeek: Int,
+    @ColumnInfo(name = "routine_id") val routineId: String,
+)

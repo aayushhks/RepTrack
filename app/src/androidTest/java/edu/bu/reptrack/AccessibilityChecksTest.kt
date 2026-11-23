@@ -16,6 +16,10 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.google.android.apps.common.testing.accessibility.framework.AccessibilityViewCheckResult
+import com.google.android.apps.common.testing.accessibility.framework.checks.SpeakableTextPresentCheck
+import com.google.android.apps.common.testing.accessibility.framework.integrations.espresso.AccessibilityValidator
 import edu.bu.reptrack.data.auth.AuthError
 import edu.bu.reptrack.data.auth.AuthUser
 import edu.bu.reptrack.domain.exercise.Exercise
@@ -36,6 +40,7 @@ import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.WeekActivity
 import edu.bu.reptrack.domain.workout.WorkoutSession
+import edu.bu.reptrack.domain.workout.WorkoutTemplate
 import edu.bu.reptrack.ui.auth.SignInScreen
 import edu.bu.reptrack.ui.auth.SignInUiState
 import edu.bu.reptrack.ui.exercises.ExerciseDetailScreen
@@ -74,12 +79,14 @@ import edu.bu.reptrack.ui.setup.GoalSetupUiState
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import edu.bu.reptrack.ui.workouts.WorkoutsScreen
 import edu.bu.reptrack.ui.workouts.WorkoutsUiState
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneOffset
+import org.hamcrest.Description
+import org.hamcrest.TypeSafeMatcher
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
 
 /**
  * Runs Google's Accessibility Test Framework over every main screen, in the dark and the light
@@ -106,8 +113,36 @@ class AccessibilityChecksTest {
                 }
             }
         }
-        composeRule.enableAccessibilityChecks()
+        composeRule.enableAccessibilityChecks(
+            AccessibilityValidator()
+                .setRunChecksFromRootView(true)
+                .setSuppressingResultMatcher(CutOffAtTheBottom),
+        )
         composeRule.onRoot().tryPerformAccessibilityChecks()
+    }
+
+    /**
+     * A row that the bottom of the screen cuts down to a thin strip, so its text is out of view
+     * and the check finds no label. TalkBack scrolls such a row into view before reading it. Only
+     * the label check is skipped, and only for strips shorter than a touch target that touch the
+     * bottom edge; every row fully on screen is still checked.
+     */
+    private object CutOffAtTheBottom : TypeSafeMatcher<AccessibilityViewCheckResult>() {
+        override fun matchesSafely(result: AccessibilityViewCheckResult): Boolean {
+            val check = runCatching { result.accessibilityHierarchyCheck }.getOrNull()
+            val element = result.element
+            if (check != SpeakableTextPresentCheck::class.java || element == null) return false
+            val bounds = element.boundsInScreen
+            val touchTarget = 48 * InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+            val bottoms = listOfNotNull(element.window.boundsInScreen, element.window.rootView?.boundsInScreen)
+                .filterNot { it.isEmpty }
+                .map { it.bottom }
+            return bounds.height < touchTarget && bottoms.any { bounds.bottom >= it }
+        }
+
+        override fun describeTo(description: Description) {
+            description.appendText("a label result for a row cut off at the bottom of the screen")
+        }
     }
 
     // ---- Sample data ----
@@ -446,6 +481,47 @@ class AccessibilityChecksTest {
 
     @Test
     fun exerciseDetail_withHowToPhotos() = check { ExerciseDetail(ExerciseDetailUiState(isLoading = false, exercise = squat, demo = squatDemo)) }
+
+    @Composable
+    private fun OwnPlan() = PlanScreen(
+        state = planState().copy(
+            isCustom = true,
+            routines = listOf(
+                WorkoutTemplate("custom_1", "Push day", listOf("Bench press", "Dips")),
+                WorkoutTemplate("custom_2", "Leg day", listOf("Squat")),
+            ),
+            schedule = mapOf(DayOfWeek.MONDAY to "custom_1", DayOfWeek.THURSDAY to "custom_2"),
+        ),
+        onBack = {},
+        onToggleDay = {},
+        onResetDays = {},
+        onOpenRoutine = {},
+    )
+
+    @Test
+    fun ownPlan_dark() = check(dark = true) { OwnPlan() }
+
+    @Test
+    fun ownPlan_light() = check(dark = false) { OwnPlan() }
+
+    @Test
+    fun ownPlan_largestFont() = check(fontScale = 2f) { OwnPlan() }
+
+    @Test
+    fun emptyOwnRoutine() = check {
+        RoutineScreen(
+            state = RoutineUiState(isLoading = false, routineId = "custom_1", name = "Push day", exercises = emptyList()),
+            onBack = {},
+            onStart = {},
+            onAdd = {},
+            onSwap = {},
+            onRemove = {},
+            onMoveUp = {},
+            onMoveDown = {},
+            onReset = {},
+            onHowTo = {},
+        )
+    }
 
     @Test
     fun weekPlan_dark() = check(dark = true) { Plan() }
