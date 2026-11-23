@@ -19,6 +19,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.bu.reptrack.data.auth.AuthError
 import edu.bu.reptrack.data.auth.AuthUser
 import edu.bu.reptrack.domain.exercise.Exercise
+import edu.bu.reptrack.domain.exercise.ExerciseDemo
 import edu.bu.reptrack.domain.profile.FitnessGoal
 import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
@@ -29,6 +30,8 @@ import edu.bu.reptrack.domain.run.RunSummary
 import edu.bu.reptrack.domain.settings.ThemeMode
 import edu.bu.reptrack.domain.weight.WeightEntry
 import edu.bu.reptrack.domain.workout.LoggedSet
+import edu.bu.reptrack.domain.workout.PlanDay
+import edu.bu.reptrack.domain.workout.PlanDayStatus
 import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.WeekActivity
@@ -39,6 +42,15 @@ import edu.bu.reptrack.ui.exercises.ExerciseDetailScreen
 import edu.bu.reptrack.ui.exercises.ExerciseDetailUiState
 import edu.bu.reptrack.ui.exercises.ExercisesScreen
 import edu.bu.reptrack.ui.exercises.ExercisesUiState
+import edu.bu.reptrack.ui.howto.HowToScreen
+import edu.bu.reptrack.ui.howto.HowToUiState
+import edu.bu.reptrack.ui.plan.ExercisePickerScreen
+import edu.bu.reptrack.ui.plan.ExercisePickerUiState
+import edu.bu.reptrack.ui.plan.PlanScreen
+import edu.bu.reptrack.ui.plan.PlanUiState
+import edu.bu.reptrack.ui.plan.RoutineExerciseUi
+import edu.bu.reptrack.ui.plan.RoutineScreen
+import edu.bu.reptrack.ui.plan.RoutineUiState
 import edu.bu.reptrack.ui.profile.ProfileScreen
 import edu.bu.reptrack.ui.profile.ProfileUiState
 import edu.bu.reptrack.ui.progress.HistoryItem
@@ -62,10 +74,12 @@ import edu.bu.reptrack.ui.setup.GoalSetupUiState
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import edu.bu.reptrack.ui.workouts.WorkoutsScreen
 import edu.bu.reptrack.ui.workouts.WorkoutsUiState
-import java.time.ZoneOffset
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 /**
  * Runs Google's Accessibility Test Framework over every main screen, in the dark and the light
@@ -341,6 +355,121 @@ class AccessibilityChecksTest {
 
     @Test
     fun exerciseDetail_largestFont() = check(fontScale = 2f) { ExerciseDetail() }
+
+    // ---- Week plan, a routine and the catalog picker ----
+
+    private fun planState(): PlanUiState {
+        val plan = StarterPlan.suggest(FitnessGoal.LOSE_WEIGHT, TrainingPlace.GYM)
+        val monday = LocalDate.parse("2026-11-23")
+        return PlanUiState(
+            isLoading = false,
+            plan = plan,
+            trainingDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+            customDays = true,
+            week = (0L until 7L).map { offset ->
+                val date = monday.plusDays(offset)
+                when (offset) {
+                    0L -> PlanDay(date, false, true, "full_body_a", "Full body A", PlanDayStatus.DONE)
+                    2L -> PlanDay(date, true, true, "full_body_b", "Full body B", PlanDayStatus.TODAY)
+                    4L -> PlanDay(date, false, true, "full_body_a", "Full body A", PlanDayStatus.PLANNED)
+                    else -> PlanDay(date, false, false, null, null, PlanDayStatus.REST)
+                }
+            },
+            routines = StarterRoutines.forPlan(plan.type),
+        )
+    }
+
+    @Composable
+    private fun Plan() = PlanScreen(state = planState(), onBack = {}, onToggleDay = {}, onResetDays = {}, onOpenRoutine = {})
+
+    private val benchPress = Exercise(73, "Bench Press", "", "Chest", listOf("Chest", "Triceps"), listOf("Barbell"), null)
+
+    @Composable
+    private fun Routine() = RoutineScreen(
+        state = RoutineUiState(
+            isLoading = false,
+            routineId = "upper",
+            name = "Upper body",
+            exercises = listOf(RoutineExerciseUi("Bench press", benchPress), RoutineExerciseUi("Barbell row", null)),
+            isEdited = true,
+        ),
+        onBack = {},
+        onStart = {},
+        onAdd = {},
+        onSwap = {},
+        onRemove = {},
+        onMoveUp = {},
+        onMoveDown = {},
+        onReset = {},
+        onHowTo = {},
+    )
+
+    @Composable
+    private fun Picker() = ExercisePickerScreen(
+        state = ExercisePickerUiState(
+            isLoading = false,
+            routineName = "Upper body",
+            replacing = "Bench press",
+            query = "",
+            sameMuscles = listOf(benchPress.copy(id = 2, name = "Dumbbell Bench Press", equipment = listOf("Dumbbell"))),
+            results = listOf(benchPress.copy(id = 3, name = "Dips", equipment = emptyList())),
+        ),
+        onBack = {},
+        onQueryChange = {},
+        onPick = {},
+    )
+
+    private val squatDemo = ExerciseDemo(
+        id = "Barbell_Squat",
+        name = "Barbell Squat",
+        imageUrls = listOf("https://example.invalid/0.jpg", "https://example.invalid/1.jpg"),
+        steps = listOf("Stand under the bar with your feet shoulder width apart.", "Squat down, then stand back up."),
+        primaryMuscles = listOf("quadriceps"),
+        equipment = "barbell",
+    )
+
+    @Composable
+    private fun HowTo(state: HowToUiState = HowToUiState(name = "Squat", isLoading = false, demo = squatDemo, catalog = benchPress.copy(name = "Squat"))) =
+        HowToScreen(state = state, onBack = {}, onRetry = {})
+
+    @Test
+    fun howTo_dark() = check(dark = true) { HowTo() }
+
+    @Test
+    fun howTo_light() = check(dark = false) { HowTo() }
+
+    @Test
+    fun howTo_largestFont() = check(fontScale = 2f) { HowTo() }
+
+    @Test
+    fun howTo_failed() = check { HowTo(HowToUiState(name = "Squat", isLoading = false, loadFailed = true)) }
+
+    @Test
+    fun exerciseDetail_withHowToPhotos() = check { ExerciseDetail(ExerciseDetailUiState(isLoading = false, exercise = squat, demo = squatDemo)) }
+
+    @Test
+    fun weekPlan_dark() = check(dark = true) { Plan() }
+
+    @Test
+    fun weekPlan_light() = check(dark = false) { Plan() }
+
+    @Test
+    fun weekPlan_largestFont() = check(fontScale = 2f) { Plan() }
+
+    @Test
+    fun routine_dark() = check(dark = true) { Routine() }
+
+    @Test
+    fun routine_light() = check(dark = false) { Routine() }
+
+    @Test
+    fun routine_largestFont() = check(fontScale = 2f) { Routine() }
+
+    @Test
+    fun picker_dark() = check(dark = true) { Picker() }
+
+    @Test
+    fun picker_light() = check(dark = false) { Picker() }
 
     // ---- Profile, sign in and setup ----
 

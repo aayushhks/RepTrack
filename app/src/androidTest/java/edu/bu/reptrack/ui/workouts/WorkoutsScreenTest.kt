@@ -36,6 +36,8 @@ class WorkoutsScreenTest {
     private var runStarted = false
     private var setUpClicked = false
     private var chosenPlace: TrainingPlace? = null
+    private var planOpened = false
+    private var openedRoutine: String? = null
 
     private fun show(state: WorkoutsUiState) {
         composeRule.setContent {
@@ -46,6 +48,8 @@ class WorkoutsScreenTest {
                     onStartWorkout = { startedRoutine = it },
                     onStartRun = { runStarted = true },
                     onSetUpPlan = { setUpClicked = true },
+                    onOpenPlan = { planOpened = true },
+                    onOpenRoutine = { openedRoutine = it },
                 )
             }
         }
@@ -135,5 +139,25 @@ class WorkoutsScreenTest {
         composeRule.onNodeWithTag("start_lower").performScrollTo().performClick()
 
         assertEquals("lower", startedRoutine)
+    }
+
+    @Test
+    fun weekPlanCard_opensTheWeekPlan() {
+        show(stateFor(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)))
+
+        composeRule.onNodeWithTag("week_plan_card").performScrollTo().performClick()
+
+        assertTrue(planOpened)
+    }
+
+    @Test
+    fun routines_openToSeeTheirExercises() {
+        show(stateFor(UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)))
+
+        // The Up next card, then another routine's card.
+        composeRule.onNodeWithTag("open_upper").performScrollTo().performClick()
+        assertEquals("upper", openedRoutine)
+        composeRule.onNodeWithTag("open_lower").performScrollTo().performClick()
+        assertEquals("lower", openedRoutine)
     }
 }

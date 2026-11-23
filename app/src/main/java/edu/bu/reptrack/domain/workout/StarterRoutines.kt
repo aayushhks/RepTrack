@@ -7,11 +7,13 @@ data class WorkoutTemplate(
     val id: String,
     val name: String,
     val exercises: List<String>,
+    /** The user changed the exercises (see RoutineEdits); the built-in list is kept to reset to. */
+    val isEdited: Boolean = false,
 )
 
 /**
- * Built-in routines for each starter plan. For now the exercises are plain names.
- * Later they will link to exercises in the catalog.
+ * Built-in routines for each starter plan. The exercises are plain names; the routine screen
+ * looks each one up in the wger catalog (see CatalogMatch), and the user can change them.
  */
 object StarterRoutines {
 

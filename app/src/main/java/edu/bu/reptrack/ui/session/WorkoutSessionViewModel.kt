@@ -8,12 +8,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import edu.bu.reptrack.RepTrackApplication
+import edu.bu.reptrack.data.plan.PlanRepository
 import edu.bu.reptrack.data.workout.WorkoutRepository
 import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.workout.LoggedSet
 import edu.bu.reptrack.domain.workout.Rest
 import edu.bu.reptrack.domain.workout.SetInput
 import edu.bu.reptrack.domain.workout.StarterRoutines
+import edu.bu.reptrack.domain.workout.withEdits
 import edu.bu.reptrack.domain.workout.exercisesToShow
 import edu.bu.reptrack.domain.workout.totalVolumeKg
 import edu.bu.reptrack.ui.navigation.Routes
@@ -21,6 +23,8 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -88,12 +92,19 @@ data class WorkoutSessionUiState(
 class WorkoutSessionViewModel(
     private val repository: WorkoutRepository,
     private val savedState: SavedStateHandle,
+    plan: PlanRepository,
     private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     private val routineId: String = savedState.get<String>(Routes.ARG_ROUTINE_ID).orEmpty()
     private val routine = StarterRoutines.find(routineId)
     private val routineName: String = routine?.name.orEmpty()
+
+    /** The routine's exercises, with the user's changes from the routine screen. */
+    private val routineExercises: StateFlow<List<String>> = plan.observeRoutineEdits()
+        .map { edits -> routine?.withEdits(edits)?.exercises.orEmpty() }
+        .catch { emit(routine?.exercises.orEmpty()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, routine?.exercises.orEmpty())
 
     private val sessionId: StateFlow<Long?> = savedState.getStateFlow(KEY_SESSION_ID, null)
 
@@ -128,12 +139,12 @@ class WorkoutSessionViewModel(
     private val restTotalMs = savedState.getStateFlow(KEY_REST_TOTAL_MS, Rest.DEFAULT_MS)
     private val rest = combine(restEndsAt, restTotalMs) { endsAt, total -> endsAt?.let { RestTimerUi(it, total) } }
 
-    val uiState: StateFlow<WorkoutSessionUiState> = combine(sets, local, rest) { sets, local, rest ->
-        buildState(sets, local).copy(rest = rest)
+    val uiState: StateFlow<WorkoutSessionUiState> = combine(sets, local, rest, routineExercises) { sets, local, rest, exercises ->
+        buildState(sets, local, exercises).copy(rest = rest)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = buildState(emptyList(), LocalState()),
+        initialValue = buildState(emptyList(), LocalState(), routineExercises.value),
     )
 
     // ---- Typing in an exercise card ----
@@ -301,8 +312,8 @@ class WorkoutSessionViewModel(
         local.update { state -> state.copy(editing = state.editing?.let(change)) }
     }
 
-    private fun buildState(sets: List<LoggedSet>, local: LocalState): WorkoutSessionUiState {
-        val names = exercisesToShow(routine?.exercises.orEmpty(), sets)
+    private fun buildState(sets: List<LoggedSet>, local: LocalState, routineExercises: List<String>): WorkoutSessionUiState {
+        val names = exercisesToShow(routineExercises, sets)
         val exercises = names.map { name ->
             val draft = local.drafts[name] ?: Draft()
             ExerciseUi(
@@ -337,7 +348,7 @@ class WorkoutSessionViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as RepTrackApplication
-                WorkoutSessionViewModel(app.container.workoutRepository, createSavedStateHandle())
+                WorkoutSessionViewModel(app.container.workoutRepository, createSavedStateHandle(), app.container.planRepository)
             }
         }
     }

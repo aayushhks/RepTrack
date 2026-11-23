@@ -1,5 +1,7 @@
 package edu.bu.reptrack.ui.navigation
 
+import java.net.URLEncoder
+
 /** Routes that are not bottom-bar tabs. */
 object Routes {
     const val SIGN_IN = "sign_in"
@@ -15,6 +17,21 @@ object Routes {
 
     /** The walk or run screen, also inside the Workouts tab. */
     const val RUN = "run"
+
+    // The week plan and routines, also inside the Workouts tab: the week, a routine with its
+    // exercises, the catalog to add or swap one, and one exercise's catalog page.
+    const val ARG_PLACE = "place"
+    const val WEEK_PLAN = "week_plan/{$ARG_PLACE}"
+    const val ROUTINE = "routine/{$ARG_ROUTINE_ID}"
+    const val ARG_REPLACE_INDEX = "replace"
+    const val ROUTINE_PICK = "routine_pick/{$ARG_ROUTINE_ID}?$ARG_REPLACE_INDEX={$ARG_REPLACE_INDEX}"
+
+    fun weekPlan(place: String) = "week_plan/$place"
+
+    fun routine(routineId: String) = "routine/$routineId"
+
+    /** [replaceIndex] is the exercise to swap, or -1 to add a new one. */
+    fun routinePick(routineId: String, replaceIndex: Int = -1) = "routine_pick/$routineId?$ARG_REPLACE_INDEX=$replaceIndex"
 
     // Screens inside the Progress tab, also a nested graph: the history, then a saved run on
     // its map, then the picture to share it as a story.
@@ -33,4 +50,11 @@ object Routes {
     const val EXERCISE_DETAIL = "exercise_detail/{$ARG_EXERCISE_ID}"
 
     fun exerciseDetail(exerciseId: Int) = "exercise_detail/$exerciseId"
+
+    /** How to do an exercise, by its name: photos and steps. Opened from a routine or a workout. */
+    const val ARG_EXERCISE_NAME = "exerciseName"
+    const val HOW_TO = "how_to/{$ARG_EXERCISE_NAME}"
+
+    /** Names can hold spaces and slashes, so they are encoded; Navigation decodes them again. */
+    fun howTo(exerciseName: String) = "how_to/" + URLEncoder.encode(exerciseName, "UTF-8").replace("+", "%20")
 }

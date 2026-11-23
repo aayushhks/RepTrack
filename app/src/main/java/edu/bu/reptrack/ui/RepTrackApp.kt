@@ -47,7 +47,11 @@ import edu.bu.reptrack.domain.auth.FirstScreen
 import edu.bu.reptrack.ui.auth.SignInRoute
 import edu.bu.reptrack.ui.exercises.ExerciseDetailRoute
 import edu.bu.reptrack.ui.exercises.ExercisesRoute
+import edu.bu.reptrack.ui.howto.HowToRoute
 import edu.bu.reptrack.ui.navigation.Routes
+import edu.bu.reptrack.ui.plan.ExercisePickerRoute
+import edu.bu.reptrack.ui.plan.PlanRoute
+import edu.bu.reptrack.ui.plan.RoutineRoute
 import edu.bu.reptrack.ui.navigation.TopLevelDestination
 import edu.bu.reptrack.ui.profile.ProfileRoute
 import edu.bu.reptrack.ui.progress.ProgressRoute
@@ -89,7 +93,15 @@ private fun FirstScreen.route(): String = when (this) {
 }
 
 /** Screens that take the whole screen, so the bottom bar is hidden on them. */
-private val fullScreenRoutes = setOf(Routes.SIGN_IN, Routes.GOAL_SETUP, Routes.WORKOUT_SESSION, Routes.RUN, Routes.RUN_STORY)
+private val fullScreenRoutes = setOf(
+    Routes.SIGN_IN,
+    Routes.GOAL_SETUP,
+    Routes.WORKOUT_SESSION,
+    Routes.RUN,
+    Routes.RUN_STORY,
+    // Opened from a workout, which is full screen too.
+    Routes.HOW_TO,
+)
 
 /**
  * Switches tabs the way the bottom bar does. Android's rule: Workouts home is always at the
@@ -246,7 +258,60 @@ fun RepTrackNavHost(
                             onStartWorkout = { routineId -> navController.navigate(Routes.workoutSession(routineId)) },
                             onStartRun = { navController.navigate(Routes.RUN) { launchSingleTop = true } },
                             onSetUpPlan = { navController.navigate(Routes.GOAL_SETUP) },
+                            onOpenPlan = { place -> navController.navigate(Routes.weekPlan(place.name)) { launchSingleTop = true } },
+                            onOpenRoutine = { routineId -> navController.navigate(Routes.routine(routineId)) { launchSingleTop = true } },
                         )
+                    }
+                    // The week plan: training days, and which routine goes on which day.
+                    composable(
+                        route = Routes.WEEK_PLAN,
+                        arguments = listOf(navArgument(Routes.ARG_PLACE) { type = NavType.StringType }),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        PlanRoute(
+                            onBack = { navController.popBackStack() },
+                            onOpenRoutine = { routineId -> navController.navigate(Routes.routine(routineId)) },
+                        )
+                    }
+                    // One routine: its exercises from the catalog, and the changes the user can make.
+                    composable(
+                        route = Routes.ROUTINE,
+                        arguments = listOf(navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType }),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        RoutineRoute(
+                            onBack = { navController.popBackStack() },
+                            onStart = { routineId -> navController.navigate(Routes.workoutSession(routineId)) },
+                            onAdd = { routineId -> navController.navigate(Routes.routinePick(routineId)) },
+                            onSwap = { routineId, index -> navController.navigate(Routes.routinePick(routineId, index)) },
+                            onHowTo = { name -> navController.navigate(Routes.howTo(name)) },
+                        )
+                    }
+                    // The catalog, to add an exercise to a routine or swap one. It closes itself once saved.
+                    composable(
+                        route = Routes.ROUTINE_PICK,
+                        arguments = listOf(
+                            navArgument(Routes.ARG_ROUTINE_ID) { type = NavType.StringType },
+                            navArgument(Routes.ARG_REPLACE_INDEX) {
+                                type = NavType.IntType
+                                defaultValue = -1
+                            },
+                        ),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        ExercisePickerRoute(onBack = { navController.popBackStack() })
+                    }
+                    // How to do an exercise, by name: photos and steps. From a routine or during a workout.
+                    composable(
+                        route = Routes.HOW_TO,
+                        arguments = listOf(navArgument(Routes.ARG_EXERCISE_NAME) { type = NavType.StringType }),
+                        enterTransition = { slideInFromRight() },
+                        popExitTransition = { slideOutToRight() },
+                    ) {
+                        HowToRoute(onBack = { navController.popBackStack() })
                     }
                     // A walk or run, full screen like a workout. The recording itself outlives this
                     // screen, so leaving it by mistake asks first instead of losing the run.
@@ -282,6 +347,7 @@ fun RepTrackNavHost(
                                 navController.navigateToTab(TopLevelDestination.PROGRESS)
                             },
                             onLeave = { navController.popBackStack() },
+                            onHowTo = { name -> navController.navigate(Routes.howTo(name)) },
                         )
                     }
                 }

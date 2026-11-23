@@ -94,8 +94,8 @@ class ExercisesScreenTest {
     fun typingAndPickingACategory_reportToTheViewModel() {
         show(loaded)
         composeRule.onNodeWithTag("exercises_search").performTextReplacement("squ")
-        composeRule.onNodeWithText("Legs").performClick()
         assertEquals("squ", typed)
+        composeRule.onNodeWithText("Legs").performClick()
         assertEquals("Legs", category)
     }
 

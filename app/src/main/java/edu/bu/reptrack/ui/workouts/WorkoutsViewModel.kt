@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import edu.bu.reptrack.RepTrackApplication
+import edu.bu.reptrack.data.plan.PlanRepository
 import edu.bu.reptrack.data.profile.ProfileRepository
 import edu.bu.reptrack.data.run.RunRepository
 import edu.bu.reptrack.data.weight.WeightRepository
@@ -17,12 +18,18 @@ import edu.bu.reptrack.domain.profile.StarterPlan
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.domain.weight.WeightTrend
+import edu.bu.reptrack.domain.run.RunSummary
+import edu.bu.reptrack.domain.weight.WeightEntry
 import edu.bu.reptrack.domain.workout.DayActivity
+import edu.bu.reptrack.domain.workout.PlanDay
+import edu.bu.reptrack.domain.workout.PlanSnapshot
+import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.WeekActivity
+import edu.bu.reptrack.domain.workout.WeekPlan
 import edu.bu.reptrack.domain.workout.WorkoutTemplate
-import edu.bu.reptrack.domain.workout.nextRoutine
 import edu.bu.reptrack.domain.workout.startOfWeekMillis
+import java.time.DayOfWeek
 import java.time.ZoneId
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,15 +54,19 @@ data class WorkoutsUiState(
     val workoutsThisWeek: Int = 0,
     /** From 0 to 1, from the first weigh-in to the goal. Null without a goal or weigh-ins. */
     val goalProgress: Float? = null,
+    /** The days the user trains: their own pick, or the plan's default days. */
+    val trainingDays: Set<DayOfWeek> = WeekPlan.defaultDays(plan.daysPerWeek),
+    /** Monday to Sunday: the routine planned or done each day, or a day off. */
+    val weekPlan: List<PlanDay> = emptyList(),
 ) {
     /** The plan's other routines, listed under the one up next. */
     val otherRoutines: List<WorkoutTemplate> get() = routines.filter { it.id != nextRoutine?.id }
 }
 
 /**
- * Builds the Workouts tab from the saved profile, finished workouts and runs, and the weight
- * log. The user can switch between gym and home here without changing their saved profile.
- * That choice lives in [SavedStateHandle], so it survives rotation.
+ * Builds the Workouts tab from the saved profile, finished workouts and runs, the weight log,
+ * and the user's changes to their plan. The user can switch between gym and home here without
+ * changing their saved profile. That choice lives in [SavedStateHandle], so it survives rotation.
  */
 class WorkoutsViewModel(
     profileRepository: ProfileRepository,
@@ -63,13 +74,22 @@ class WorkoutsViewModel(
     workouts: WorkoutRepository,
     runs: RunRepository,
     weights: WeightRepository,
+    planRepository: PlanRepository,
     private val now: () -> Long = System::currentTimeMillis,
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
 
     private val chosenPlace = savedState.getStateFlow<String?>(KEY_PLACE, null)
 
-    val uiState: StateFlow<WorkoutsUiState> = combine(
+    private data class Saved(
+        val profile: UserProfile?,
+        val placeName: String?,
+        val history: List<SessionSummary>,
+        val runs: List<RunSummary>,
+        val weights: List<WeightEntry>,
+    )
+
+    private val saved = combine(
         profileRepository.profile,
         chosenPlace,
         // If history can not be read, the plan and routines still show; only the streak,
@@ -77,18 +97,28 @@ class WorkoutsViewModel(
         workouts.observeHistory().catch { emit(emptyList()) },
         runs.observeRuns().catch { emit(emptyList()) },
         weights.observeWeights().catch { emit(emptyList()) },
-    ) { profile, placeName, history, runList, weightList ->
+    ) { profile, placeName, history, runList, weightList -> Saved(profile, placeName, history, runList, weightList) }
+
+    val uiState: StateFlow<WorkoutsUiState> = combine(
+        saved,
+        // Without the plan changes, the built-in routines and days still show.
+        planRepository.observeRoutineEdits().catch { emit(emptyMap()) },
+        planRepository.observeTrainingDays().catch { emit(emptySet()) },
+    ) { (profile, placeName, history, runList, weightList), edits, chosenDays ->
         // A place picked on this screen wins over the one saved in the profile.
         val place = placeName?.let { TrainingPlace.valueOf(it) } ?: profile?.place ?: TrainingPlace.GYM
-        val plan = StarterPlan.suggest(profile?.goal ?: DEFAULT_GOAL, place)
-        val routines = StarterRoutines.forPlan(plan.type)
-
         val workoutTimes = history.map { it.session.finishedAt ?: it.session.startedAt }
         val runTimes = runList.map { it.finishedAt }
-        val lastRoutineId = history
-            .filter { it.session.routineId in routines.map(WorkoutTemplate::id) }
-            .maxByOrNull { it.session.finishedAt ?: it.session.startedAt }
-            ?.session?.routineId
+        val snapshot = PlanSnapshot.of(
+            goal = profile?.goal ?: DEFAULT_GOAL,
+            place = place,
+            edits = edits,
+            chosenDays = chosenDays,
+            history = history,
+            runTimes = runTimes,
+            nowMillis = now(),
+            zone = zone,
+        )
         val goalProgress = profile?.let {
             val start = weightList.firstOrNull() ?: return@let null
             val latest = weightList.last()
@@ -99,13 +129,15 @@ class WorkoutsViewModel(
             isLoading = false,
             profile = profile,
             place = place,
-            plan = plan,
-            routines = routines,
-            nextRoutine = nextRoutine(routines, lastRoutineId),
+            plan = snapshot.plan,
+            routines = snapshot.routines,
+            nextRoutine = snapshot.next,
             week = WeekActivity.thisWeek(workoutTimes, runTimes, now(), zone),
             streakDays = WeekActivity.streakDays(workoutTimes + runTimes, now(), zone),
             workoutsThisWeek = workoutTimes.count { it >= startOfWeekMillis(now(), zone) },
             goalProgress = goalProgress,
+            trainingDays = snapshot.trainingDays,
+            weekPlan = snapshot.week,
         )
     }.stateIn(
             scope = viewModelScope,
@@ -133,6 +165,7 @@ class WorkoutsViewModel(
                     workouts = app.container.workoutRepository,
                     runs = app.container.runRepository,
                     weights = app.container.weightRepository,
+                    planRepository = app.container.planRepository,
                 )
             }
         }
