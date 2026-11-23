@@ -67,6 +67,54 @@
     <string name="workouts_streak_label">day streak</string>
     <string name="workouts_goal_ring">%1$d percent of the way to your goal weight</string>
     <string name="workouts_weight_from_to">%1$s → %2$s kg</string>
+    <string name="workouts_week_plan">Week plan</string>
+    <string name="workouts_week_plan_edit">Days and routines</string>
+    <string name="workouts_open_week_plan">Open the week plan</string>
+    <string name="workouts_edit_routine">Exercises</string>
+    <!-- Read by TalkBack for the Exercises button on the Up next card. Example: "See and edit the exercises of Upper body" -->
+    <string name="workouts_edit_routine_description">See and edit the exercises of %1$s</string>
+    <string name="workouts_open_routine">See exercises</string>
+
+    <!-- Week plan, a routine and its exercises, and the catalog picker to add or swap one -->
+    <string name="plan_title">Week plan</string>
+    <string name="plan_back">Back</string>
+    <string name="plan_training_days">Training days</string>
+    <string name="plan_training_days_message">Tap a day to train or rest on it. The routines take turns on your training days.</string>
+    <string name="plan_use_default_days">Use the plan\'s days</string>
+    <string name="plan_this_week">This week</string>
+    <string name="plan_rest">Rest</string>
+    <string name="plan_status_done">Done</string>
+    <string name="plan_status_today">Today</string>
+    <string name="plan_status_missed">Missed</string>
+    <string name="plan_status_ran">Walk or run</string>
+    <string name="plan_routines">Routines</string>
+    <string name="plan_edited">Edited</string>
+    <!-- Example: "5 exercises · Edited" -->
+    <string name="plan_routine_summary">%1$s · %2$s</string>
+    <string name="plan_save_failed">That change was not saved. Please try again.</string>
+    <string name="routine_not_found">This routine is not in your plan.</string>
+    <string name="routine_exercises">Exercises</string>
+    <string name="routine_not_in_catalog">Not in the exercise catalog</string>
+    <string name="routine_catalog_empty">Open the Exercises tab once with internet to see muscles and how to do each exercise.</string>
+    <string name="routine_more">More options for %1$s</string>
+    <string name="routine_open_how_to">See how to do it</string>
+    <string name="routine_swap">Swap</string>
+    <string name="routine_move_up">Move up</string>
+    <string name="routine_move_down">Move down</string>
+    <string name="routine_remove">Remove</string>
+    <string name="routine_add">Add exercise</string>
+    <string name="routine_reset">Reset to the original exercises</string>
+    <string name="routine_start">Start workout</string>
+    <string name="routine_credit">Exercise info from wger.de (CC BY-SA 4.0)</string>
+    <!-- Example: "Swap Bench press" -->
+    <string name="picker_swap_title">Swap %1$s</string>
+    <!-- Example: "Add to Upper body" -->
+    <string name="picker_add_title">Add to %1$s</string>
+    <string name="picker_same_muscles">Same muscles</string>
+    <string name="picker_all">All exercises</string>
+    <!-- Example: "Add “Face pull” as your own exercise" -->
+    <string name="picker_custom">Add “%1$s” as your own exercise</string>
+    <string name="picker_catalog_empty">The exercise catalog is not on your phone yet. Open the Exercises tab with internet, or type a name to add your own.</string>
 
     <!-- Workout session -->
     <string name="session_fallback_title">Workout</string>

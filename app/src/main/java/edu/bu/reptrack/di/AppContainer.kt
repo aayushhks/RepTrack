@@ -13,6 +13,8 @@ import edu.bu.reptrack.data.exercise.WgerApi
 import edu.bu.reptrack.data.exercise.exerciseDataStore
 import edu.bu.reptrack.data.exercise.wgerHttpClient
 import edu.bu.reptrack.data.location.FusedLocationTracker
+import edu.bu.reptrack.data.plan.PlanRepository
+import edu.bu.reptrack.data.plan.RoomPlanRepository
 import edu.bu.reptrack.data.profile.DataStoreProfileRepository
 import edu.bu.reptrack.data.profile.ProfileRepository
 import edu.bu.reptrack.data.profile.profileDataStore
@@ -55,6 +57,9 @@ class AppContainer(context: Context) {
             api = WgerApi(wgerHttpClient()),
             stamp = DataStoreRefreshStamp(appContext.exerciseDataStore),
         )
+
+    /** The user's changes to their plan: edited routines and training days. */
+    val planRepository: PlanRepository = RoomPlanRepository(database.planDao())
 
     val runRepository: RunRepository = RoomRunRepository(database.runDao())
 

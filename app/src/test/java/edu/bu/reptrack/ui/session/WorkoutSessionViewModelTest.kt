@@ -1,6 +1,7 @@
 package edu.bu.reptrack.ui.session
 
 import androidx.lifecycle.SavedStateHandle
+import edu.bu.reptrack.testing.FakePlanRepository
 import edu.bu.reptrack.testing.FakeWorkoutRepository
 import edu.bu.reptrack.testing.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,9 +23,10 @@ class WorkoutSessionViewModelTest {
 
     private var clock = 1_000L
     private val repository = FakeWorkoutRepository(now = { clock })
+    private val plan = FakePlanRepository()
 
     private fun newViewModel(extra: Map<String, Any?> = emptyMap()) =
-        WorkoutSessionViewModel(repository, SavedStateHandle(mapOf("routineId" to "full_body_a") + extra)) { clock }
+        WorkoutSessionViewModel(repository, SavedStateHandle(mapOf("routineId" to "full_body_a") + extra), plan) { clock }
 
     private fun WorkoutSessionViewModel.log(exercise: String, weight: String, reps: String) {
         onWeightChange(exercise, weight)
@@ -325,5 +327,14 @@ class WorkoutSessionViewModelTest {
 
         viewModel.dismissError()
         assertNull(viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun editedRoutine_isTheOneShown() = runTest {
+        plan.edits.value = mapOf("full_body_a" to listOf("Goblet squat", "Push-up"))
+
+        val names = newViewModel().uiState.value.exercises.map { it.name }
+
+        assertEquals(listOf("Goblet squat", "Push-up"), names)
     }
 }

@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import edu.bu.reptrack.fakes.FakePlanRepository
 import edu.bu.reptrack.fakes.FakeWorkoutRepository
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import java.util.concurrent.atomic.AtomicBoolean
@@ -37,7 +38,7 @@ class WorkoutSessionTest {
     private fun showSession() {
         composeRule.setContent {
             val viewModel = remember {
-                WorkoutSessionViewModel(repository, SavedStateHandle(mapOf("routineId" to "full_body_a")))
+                WorkoutSessionViewModel(repository, SavedStateHandle(mapOf("routineId" to "full_body_a")), FakePlanRepository())
             }
             RepTrackTheme {
                 WorkoutSessionRoute(

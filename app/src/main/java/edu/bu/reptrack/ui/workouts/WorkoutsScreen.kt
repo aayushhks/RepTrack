@@ -2,6 +2,7 @@ package edu.bu.reptrack.ui.workouts
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,15 +28,18 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -56,6 +60,8 @@ import edu.bu.reptrack.domain.profile.formatKg
 import edu.bu.reptrack.domain.profile.weightGoalGap
 import edu.bu.reptrack.domain.workout.DayActivity
 import edu.bu.reptrack.domain.workout.DayKind
+import edu.bu.reptrack.domain.workout.PlanDay
+import edu.bu.reptrack.domain.workout.PlanDayStatus
 import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.WeekActivity
 import edu.bu.reptrack.domain.workout.WorkoutTemplate
@@ -79,6 +85,8 @@ fun WorkoutsRoute(
     onStartWorkout: (routineId: String) -> Unit,
     onStartRun: () -> Unit,
     onSetUpPlan: () -> Unit,
+    onOpenPlan: (place: TrainingPlace) -> Unit,
+    onOpenRoutine: (routineId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WorkoutsViewModel = viewModel(factory = WorkoutsViewModel.Factory),
 ) {
@@ -89,6 +97,8 @@ fun WorkoutsRoute(
         onStartWorkout = onStartWorkout,
         onStartRun = onStartRun,
         onSetUpPlan = onSetUpPlan,
+        onOpenPlan = { onOpenPlan(state.place) },
+        onOpenRoutine = onOpenRoutine,
         modifier = modifier,
     )
 }
@@ -106,6 +116,10 @@ fun WorkoutsScreen(
     onStartRun: () -> Unit,
     onSetUpPlan: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Opens the week plan: training days and which routine goes on which day. */
+    onOpenPlan: () -> Unit = {},
+    /** Opens a routine to see and edit its exercises. */
+    onOpenRoutine: (routineId: String) -> Unit = {},
 ) {
     if (state.isLoading) {
         Box(
@@ -166,20 +180,24 @@ fun WorkoutsScreen(
         if (profile != null && next != null) {
             TodayCard(
                 plan = state.plan,
+                daysPerWeek = state.trainingDays.size,
                 routine = next,
                 workoutsThisWeek = state.workoutsThisWeek,
                 onStart = { onStartWorkout(next.id) },
+                onOpen = { onOpenRoutine(next.id) },
             )
+            WeekPlanCard(week = state.weekPlan, onOpen = onOpenPlan)
             if (state.otherRoutines.isNotEmpty()) {
                 SectionLabel(R.string.workouts_routines_label)
                 state.otherRoutines.forEach { routine ->
-                    RoutineRow(routine = routine, onStart = { onStartWorkout(routine.id) })
+                    RoutineRow(routine = routine, onStart = { onStartWorkout(routine.id) }, onOpen = { onOpenRoutine(routine.id) })
                 }
             }
         } else {
+            WeekPlanCard(week = state.weekPlan, onOpen = onOpenPlan)
             SectionLabel(R.string.workouts_routines_label)
             state.routines.forEach { routine ->
-                RoutineRow(routine = routine, onStart = { onStartWorkout(routine.id) })
+                RoutineRow(routine = routine, onStart = { onStartWorkout(routine.id) }, onOpen = { onOpenRoutine(routine.id) })
             }
         }
 
@@ -337,9 +355,17 @@ private fun WeekStrip(week: List<DayActivity>) {
 
 /** The one loud element on the tab: today's workout on a lime card, with Start. */
 @Composable
-private fun TodayCard(plan: StarterPlan, routine: WorkoutTemplate, workoutsThisWeek: Int, onStart: () -> Unit) {
+private fun TodayCard(
+    plan: StarterPlan,
+    daysPerWeek: Int,
+    routine: WorkoutTemplate,
+    workoutsThisWeek: Int,
+    onStart: () -> Unit,
+    onOpen: () -> Unit,
+) {
     val onHero = MaterialTheme.colorScheme.onPrimaryContainer
     val startLabel = stringResource(R.string.workouts_start_routine, routine.name)
+    val openLabel = stringResource(R.string.workouts_edit_routine_description, routine.name)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -352,7 +378,7 @@ private fun TodayCard(plan: StarterPlan, routine: WorkoutTemplate, workoutsThisW
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Overline(stringResource(R.string.workouts_plan_label), color = onHero, modifier = Modifier.weight(1f))
                 Text(
-                    text = stringResource(R.string.workouts_week_progress, minOf(workoutsThisWeek, plan.daysPerWeek), plan.daysPerWeek),
+                    text = stringResource(R.string.workouts_week_progress, minOf(workoutsThisWeek, daysPerWeek), daysPerWeek),
                     style = MaterialTheme.typography.labelMedium,
                     color = onHero,
                 )
@@ -365,7 +391,7 @@ private fun TodayCard(plan: StarterPlan, routine: WorkoutTemplate, workoutsThisW
                     .testTag("plan_name"),
             )
             Text(
-                text = stringResource(R.string.plan_days, plan.daysPerWeek),
+                text = stringResource(R.string.plan_days, daysPerWeek),
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(Modifier.size(6.dp))
@@ -384,11 +410,23 @@ private fun TodayCard(plan: StarterPlan, routine: WorkoutTemplate, workoutsThisW
                     .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.workouts_exercise_count, routine.exercises.size),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.weight(1f),
-                )
+                // See and edit the exercises. Ink on lime, like the Start button.
+                TextButton(
+                    onClick = onOpen,
+                    colors = ButtonDefaults.textButtonColors(contentColor = onHero),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .semantics { contentDescription = openLabel }
+                        .testTag("open_${routine.id}"),
+                ) {
+                    Text(
+                        text = stringResource(R.string.workouts_exercise_count, routine.exercises.size),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, modifier = Modifier.size(18.dp))
+                }
                 // Ink pill with lime text: the one place the flipped colors are used.
                 Button(
                     onClick = onStart,
@@ -442,19 +480,50 @@ private fun SetUpPlanCard(onSetUpPlan: () -> Unit) {
     }
 }
 
-/** One routine: a dumbbell tile, its name and size, and Start. */
+/** One routine: a dumbbell tile, its name and size, and Start. Tap the card to see its exercises. */
 @Composable
-private fun RoutineRow(routine: WorkoutTemplate, onStart: () -> Unit) {
+private fun RoutineRow(routine: WorkoutTemplate, onStart: () -> Unit, onOpen: () -> Unit) {
     val startLabel = stringResource(R.string.workouts_start_routine, routine.name)
+    val count = stringResource(R.string.workouts_exercise_count, routine.exercises.size)
     ListRow(
         icon = R.drawable.ic_tab_workouts,
         iconTint = MaterialTheme.colorScheme.primary,
         iconContainer = MaterialTheme.colorScheme.surfaceContainerHigh,
         title = routine.name,
-        subtitle = stringResource(R.string.workouts_exercise_count, routine.exercises.size),
+        subtitle = if (routine.isEdited) stringResource(R.string.plan_routine_summary, count, stringResource(R.string.plan_edited)) else count,
         startLabel = startLabel,
         startTag = "start_${routine.id}",
         onStart = onStart,
+        onOpen = onOpen,
+        openTag = "open_${routine.id}",
+    )
+}
+
+/**
+ * The week at a glance, "Mon Full body A · Thu Full body B", with a way into the week plan to
+ * change the days and edit the routines.
+ */
+@Composable
+private fun WeekPlanCard(week: List<PlanDay>, onOpen: () -> Unit) {
+    val locale = Locale.getDefault()
+    val summary = week
+        .filter { it.isTrainingDay || it.status == PlanDayStatus.DONE }
+        .joinToString("  ·  ") { day ->
+            val name = day.date.dayOfWeek.getDisplayName(DateTextStyle.SHORT, locale)
+            day.routineName?.let { "$name $it" } ?: name
+        }
+    ListRow(
+        icon = R.drawable.ic_calendar,
+        iconTint = MaterialTheme.colorScheme.primary,
+        iconContainer = MaterialTheme.colorScheme.surfaceContainerHigh,
+        title = stringResource(R.string.workouts_week_plan),
+        subtitle = summary.ifEmpty { stringResource(R.string.workouts_week_plan_edit) },
+        startLabel = null,
+        startTag = null,
+        onStart = null,
+        onOpen = onOpen,
+        openTag = "week_plan_card",
+        openLabel = stringResource(R.string.workouts_open_week_plan),
     )
 }
 
@@ -473,6 +542,10 @@ private fun RunRow(onStart: () -> Unit) {
     )
 }
 
+/**
+ * A card with a tile, a title and a line under it, and a Start button when [onStart] is given.
+ * With [onOpen] the whole card is tappable too; Start stays its own button.
+ */
 @Composable
 private fun ListRow(
     icon: Int,
@@ -480,11 +553,22 @@ private fun ListRow(
     iconContainer: Color,
     title: String,
     subtitle: String,
-    startLabel: String,
-    startTag: String,
-    onStart: () -> Unit,
+    startLabel: String?,
+    startTag: String?,
+    onStart: (() -> Unit)?,
+    onOpen: (() -> Unit)? = null,
+    openTag: String? = null,
+    openLabel: String = stringResource(R.string.workouts_open_routine),
 ) {
-    VoltCard(contentPadding = 14.dp) {
+    val open = if (onOpen == null) {
+        Modifier
+    } else {
+        Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClickLabel = openLabel, role = Role.Button, onClick = onOpen)
+            .then(if (openTag != null) Modifier.testTag(openTag) else Modifier)
+    }
+    VoltCard(contentPadding = 14.dp, modifier = open) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             IconTile(icon = icon, tint = iconTint, container = iconContainer)
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -495,14 +579,22 @@ private fun ListRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            FilledTonalButton(
-                onClick = onStart,
-                // TalkBack says "Start Upper body" instead of just "Start".
-                modifier = Modifier
-                    .semantics { contentDescription = startLabel }
-                    .testTag(startTag),
-            ) {
-                Text(stringResource(R.string.workouts_start))
+            if (onStart != null) {
+                FilledTonalButton(
+                    onClick = onStart,
+                    // TalkBack says "Start Upper body" instead of just "Start".
+                    modifier = Modifier
+                        .semantics { if (startLabel != null) contentDescription = startLabel }
+                        .then(if (startTag != null) Modifier.testTag(startTag) else Modifier),
+                ) {
+                    Text(stringResource(R.string.workouts_start))
+                }
+            } else {
+                Icon(
+                    painterResource(R.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

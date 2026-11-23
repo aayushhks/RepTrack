@@ -6,11 +6,14 @@ import edu.bu.reptrack.domain.profile.PlanType
 import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.profile.UserProfile
 import edu.bu.reptrack.domain.run.RunSummary
+import edu.bu.reptrack.domain.workout.PlanDayStatus
+import edu.bu.reptrack.testing.FakePlanRepository
 import edu.bu.reptrack.testing.FakeProfileRepository
 import edu.bu.reptrack.testing.FakeRunRepository
 import edu.bu.reptrack.testing.FakeWeightRepository
 import edu.bu.reptrack.testing.FakeWorkoutRepository
 import edu.bu.reptrack.testing.MainDispatcherRule
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,9 +43,10 @@ class WorkoutsViewModelTest {
     private val workouts = FakeWorkoutRepository(now = { clock })
     private val runs = FakeRunRepository()
     private val weights = FakeWeightRepository()
+    private val plan = FakePlanRepository()
 
     private fun newViewModel(savedState: SavedStateHandle = SavedStateHandle()) =
-        WorkoutsViewModel(repository, savedState, workouts, runs, weights, now = { clock }, zone = zone)
+        WorkoutsViewModel(repository, savedState, workouts, runs, weights, plan, now = { clock }, zone = zone)
 
     private val muscleAtGym = UserProfile(178f, 82f, 76f, FitnessGoal.BUILD_MUSCLE, TrainingPlace.GYM)
 
@@ -185,5 +189,49 @@ class WorkoutsViewModelTest {
         assertFalse(state.isLoading)
         assertEquals(PlanType.UPPER_LOWER, state.plan.type)
         assertNull(state.goalProgress)
+    }
+
+    // ---- The week plan and edited routines ----
+
+    @Test
+    fun weekPlan_putsTheRoutinesOnTheDefaultDays() = runTest {
+        repository.saveProfile(muscleAtGym)
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        // Upper/lower, 4 days: Monday, Tuesday, Thursday, Friday. Today is Wednesday, nothing done yet.
+        val state = viewModel.uiState.value
+        assertEquals(setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY), state.trainingDays)
+        val week = state.weekPlan
+        assertEquals(7, week.size)
+        assertEquals(PlanDayStatus.MISSED, week[0].status)
+        assertEquals(PlanDayStatus.REST, week[2].status)
+        assertEquals("upper", week[3].routineId)
+        assertEquals("lower", week[4].routineId)
+    }
+
+    @Test
+    fun ownTrainingDays_replaceTheDefaultOnes() = runTest {
+        repository.saveProfile(muscleAtGym)
+        plan.days.value = setOf(DayOfWeek.WEDNESDAY, DayOfWeek.SATURDAY)
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        val week = viewModel.uiState.value.weekPlan
+        assertEquals(setOf(DayOfWeek.WEDNESDAY, DayOfWeek.SATURDAY), viewModel.uiState.value.trainingDays)
+        assertEquals(PlanDayStatus.TODAY, week[2].status)
+        assertEquals(viewModel.uiState.value.nextRoutine?.id, week[2].routineId)
+    }
+
+    @Test
+    fun editedRoutine_showsItsNewExercises() = runTest {
+        repository.saveProfile(muscleAtGym)
+        plan.edits.value = mapOf("upper" to listOf("Incline bench press", "Pull-up"))
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        val upper = viewModel.uiState.value.routines.first { it.id == "upper" }
+        assertEquals(listOf("Incline bench press", "Pull-up"), upper.exercises)
+        assertTrue(upper.isEdited)
     }
 }
