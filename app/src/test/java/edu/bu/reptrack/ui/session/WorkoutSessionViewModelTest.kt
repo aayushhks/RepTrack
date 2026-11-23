@@ -337,4 +337,20 @@ class WorkoutSessionViewModelTest {
 
         assertEquals(listOf("Goblet squat", "Push-up"), names)
     }
+
+    @Test
+    fun ownRoutine_givesItsNameAndExercises_andTheSessionIsSavedUnderIt() = runTest {
+        plan.ownRoutines.value = listOf("custom_1" to "Push day")
+        plan.edits.value = mapOf("custom_1" to listOf("Bench press", "Dips"))
+        val viewModel = WorkoutSessionViewModel(repository, SavedStateHandle(mapOf("routineId" to "custom_1")), plan) { clock }
+
+        assertEquals("Push day", viewModel.uiState.value.routineName)
+        assertEquals(listOf("Bench press", "Dips"), viewModel.uiState.value.exercises.map { it.name })
+
+        viewModel.log("Dips", "0", "12")
+        advanceUntilIdle()
+
+        assertEquals("Push day", repository.allSessions.single().name)
+        assertEquals("custom_1", repository.allSessions.single().routineId)
+    }
 }

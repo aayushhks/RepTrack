@@ -105,4 +105,28 @@ class RoutineViewModelTest {
     fun unknownRoutine_saysSo() = runTest {
         assertTrue(open(routineId = "nope").uiState.value.notFound)
     }
+
+    @Test
+    fun ownRoutine_showsItsExercises_andSavesChanges() = runTest {
+        plan.ownRoutines.value = listOf("custom_1" to "Push day")
+        plan.edits.value = mapOf("custom_1" to listOf("Bench press", "Dips"))
+        val viewModel = open("custom_1")
+
+        assertEquals("Push day", viewModel.uiState.value.name)
+        assertEquals(73, viewModel.uiState.value.exercises.first().match?.id)
+        assertFalse(viewModel.uiState.value.isEdited)
+
+        viewModel.moveDown(0)
+        assertEquals(listOf("Dips", "Bench press"), plan.edits.value["custom_1"])
+    }
+
+    @Test
+    fun newOwnRoutine_isEmpty_andCannotStartYet() = runTest {
+        plan.ownRoutines.value = listOf("custom_1" to "Legs")
+        val state = open("custom_1").uiState.value
+
+        assertFalse(state.notFound)
+        assertTrue(state.exercises.isEmpty())
+        assertFalse(state.canStart)
+    }
 }

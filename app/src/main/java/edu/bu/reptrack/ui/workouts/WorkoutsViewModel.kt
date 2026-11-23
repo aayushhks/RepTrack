@@ -22,6 +22,7 @@ import edu.bu.reptrack.domain.run.RunSummary
 import edu.bu.reptrack.domain.weight.WeightEntry
 import edu.bu.reptrack.domain.workout.DayActivity
 import edu.bu.reptrack.domain.workout.PlanDay
+import edu.bu.reptrack.domain.workout.CustomPlan
 import edu.bu.reptrack.domain.workout.PlanSnapshot
 import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.StarterRoutines
@@ -58,6 +59,8 @@ data class WorkoutsUiState(
     val trainingDays: Set<DayOfWeek> = WeekPlan.defaultDays(plan.daysPerWeek),
     /** Monday to Sunday: the routine planned or done each day, or a day off. */
     val weekPlan: List<PlanDay> = emptyList(),
+    /** The user made their own plan, so gym or home does not change it. */
+    val isCustomPlan: Boolean = false,
 ) {
     /** The plan's other routines, listed under the one up next. */
     val otherRoutines: List<WorkoutTemplate> get() = routines.filter { it.id != nextRoutine?.id }
@@ -104,7 +107,8 @@ class WorkoutsViewModel(
         // Without the plan changes, the built-in routines and days still show.
         planRepository.observeRoutineEdits().catch { emit(emptyMap()) },
         planRepository.observeTrainingDays().catch { emit(emptySet()) },
-    ) { (profile, placeName, history, runList, weightList), edits, chosenDays ->
+        planRepository.observeCustomPlan().catch { emit(CustomPlan()) },
+    ) { (profile, placeName, history, runList, weightList), edits, chosenDays, custom ->
         // A place picked on this screen wins over the one saved in the profile.
         val place = placeName?.let { TrainingPlace.valueOf(it) } ?: profile?.place ?: TrainingPlace.GYM
         val workoutTimes = history.map { it.session.finishedAt ?: it.session.startedAt }
@@ -118,6 +122,7 @@ class WorkoutsViewModel(
             runTimes = runTimes,
             nowMillis = now(),
             zone = zone,
+            custom = custom,
         )
         val goalProgress = profile?.let {
             val start = weightList.firstOrNull() ?: return@let null
@@ -138,6 +143,7 @@ class WorkoutsViewModel(
             goalProgress = goalProgress,
             trainingDays = snapshot.trainingDays,
             weekPlan = snapshot.week,
+            isCustomPlan = snapshot.isCustom,
         )
     }.stateIn(
             scope = viewModelScope,

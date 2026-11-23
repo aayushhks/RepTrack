@@ -96,6 +96,44 @@ object WeekPlan {
             }
         }
     }
+
+    /**
+     * The week on the user's own plan, where each training day has its own routine, the same
+     * every week. Days already done show what was done.
+     */
+    fun buildScheduled(
+        today: LocalDate,
+        schedule: Map<DayOfWeek, WorkoutTemplate>,
+        done: List<Done>,
+        runDates: Set<LocalDate>,
+    ): List<PlanDay> {
+        val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val doneByDate = done.groupBy { it.date }.mapValues { (_, workouts) -> workouts.last() }
+        return (0L until 7L).map { offset ->
+            val date = monday.plusDays(offset)
+            val isToday = date.isEqual(today)
+            val routine = schedule[date.dayOfWeek]
+            val workout = doneByDate[date]
+            val dayOff = if (date in runDates) PlanDayStatus.RAN else PlanDayStatus.REST
+            when {
+                workout != null -> PlanDay(date, isToday, routine != null, workout.routineId, workout.name, PlanDayStatus.DONE)
+                routine == null -> PlanDay(date, isToday, false, null, null, dayOff)
+                date.isBefore(today) -> PlanDay(date, isToday, true, null, null, PlanDayStatus.MISSED)
+                else -> PlanDay(date, isToday, true, routine.id, routine.name, if (isToday) PlanDayStatus.TODAY else PlanDayStatus.PLANNED)
+            }
+        }
+    }
+
+    /**
+     * The routine to do next on the user's own plan: today's, unless a workout was already done
+     * today, else the one of the next training day. Null when no day has a routine.
+     */
+    fun nextScheduled(today: LocalDate, schedule: Map<DayOfWeek, WorkoutTemplate>, doneToday: Boolean): WorkoutTemplate? {
+        if (schedule.isEmpty()) return null
+        val from = if (doneToday) 1L else 0L
+        // Up to 7 days ahead, so a plan with one day a week finds the same day next week.
+        return (from..7L).firstNotNullOfOrNull { schedule[today.plusDays(it).dayOfWeek] }
+    }
 }
 
 /** Everything about the user's plan this week, worked out from what is saved. */
@@ -109,6 +147,8 @@ data class PlanSnapshot(
     /** The user picked their own days, instead of the plan's default ones. */
     val customDays: Boolean,
     val week: List<PlanDay>,
+    /** The user's own plan is used instead of the suggested one. */
+    val isCustom: Boolean = false,
 ) {
     companion object {
         /**
@@ -124,8 +164,10 @@ data class PlanSnapshot(
             runTimes: List<Long>,
             nowMillis: Long,
             zone: ZoneId,
+            custom: CustomPlan = CustomPlan(),
         ): PlanSnapshot {
             val plan = StarterPlan.suggest(goal, place)
+            if (custom.isActive) return ofCustom(plan, custom, history, runTimes, nowMillis, zone)
             val routines = RoutineEdits.apply(StarterRoutines.forPlan(plan.type), edits)
             val ids = routines.map { it.id }.toSet()
             val lastRoutineId = history
@@ -143,6 +185,29 @@ data class PlanSnapshot(
                 runDates = runTimes.map { dateOf(it, zone) }.toSet(),
             )
             return PlanSnapshot(plan, routines, next, days, customDays = chosenDays.isNotEmpty(), week = week)
+        }
+
+        /** The user's own plan: their routines, each on its own days. */
+        private fun ofCustom(
+            plan: StarterPlan,
+            custom: CustomPlan,
+            history: List<SessionSummary>,
+            runTimes: List<Long>,
+            nowMillis: Long,
+            zone: ZoneId,
+        ): PlanSnapshot {
+            val today = dateOf(nowMillis, zone)
+            val schedule = custom.scheduledRoutines
+            val done = history.map { WeekPlan.Done(dateOf(it.session.finishedAt ?: it.session.startedAt, zone), it.session.routineId, it.session.name) }
+            return PlanSnapshot(
+                plan = plan,
+                routines = custom.routines,
+                next = WeekPlan.nextScheduled(today, schedule, doneToday = done.any { it.date == today }),
+                trainingDays = schedule.keys,
+                customDays = false,
+                week = WeekPlan.buildScheduled(today, schedule, done, runTimes.map { dateOf(it, zone) }.toSet()),
+                isCustom = true,
+            )
         }
 
         private fun dateOf(millis: Long, zone: ZoneId): LocalDate = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()

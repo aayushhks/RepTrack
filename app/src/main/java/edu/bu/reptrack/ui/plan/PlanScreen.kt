@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -16,16 +17,30 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +53,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,6 +62,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import edu.bu.reptrack.R
 import edu.bu.reptrack.domain.workout.PlanDay
 import edu.bu.reptrack.domain.workout.PlanDayStatus
+import edu.bu.reptrack.domain.workout.RoutineName
 import edu.bu.reptrack.domain.workout.WorkoutTemplate
 import edu.bu.reptrack.ui.components.IconTile
 import edu.bu.reptrack.ui.components.Overline
@@ -67,6 +85,13 @@ fun PlanRoute(
     viewModel: PlanViewModel = viewModel(factory = PlanViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // A routine the user just made opens right away, so they can add its exercises.
+    LaunchedEffect(state.createdRoutineId) {
+        state.createdRoutineId?.let { id ->
+            viewModel.onCreatedRoutineOpened()
+            onOpenRoutine(id)
+        }
+    }
     PlanScreen(
         state = state,
         onBack = onBack,
@@ -74,12 +99,21 @@ fun PlanRoute(
         onResetDays = viewModel::resetDays,
         onOpenRoutine = onOpenRoutine,
         modifier = modifier,
+        onStartFromSuggested = viewModel::startFromSuggested,
+        onStartFromScratch = viewModel::startFromScratch,
+        onAddRoutine = viewModel::addRoutine,
+        onRenameRoutine = viewModel::renameRoutine,
+        onDeleteRoutine = viewModel::deleteRoutine,
+        onSetDayRoutine = viewModel::setDayRoutine,
+        onUseSuggestedPlan = viewModel::useSuggestedPlan,
     )
 }
 
 /**
  * The week plan: the days the user trains, this week day by day (what was done, what is today,
- * what is coming, days off), and the plan's routines to open and edit. Stateless.
+ * what is coming, days off), and the plan's routines to open and edit. The user can make the
+ * plan their own: then they name their routines and pick one for each day of the week.
+ * Stateless, apart from which dialog is open.
  */
 @Composable
 fun PlanScreen(
@@ -89,7 +123,27 @@ fun PlanScreen(
     onResetDays: () -> Unit,
     onOpenRoutine: (routineId: String) -> Unit,
     modifier: Modifier = Modifier,
+    onStartFromSuggested: () -> Unit = {},
+    onStartFromScratch: (name: String) -> Unit = {},
+    onAddRoutine: (name: String) -> Unit = {},
+    onRenameRoutine: (routineId: String, name: String) -> Unit = { _, _ -> },
+    onDeleteRoutine: (routineId: String) -> Unit = {},
+    onSetDayRoutine: (day: DayOfWeek, routineId: String?) -> Unit = { _, _ -> },
+    onUseSuggestedPlan: () -> Unit = {},
 ) {
+    // Which dialog is open: "scratch", "new", "rename:<id>", "delete:<id>" or "suggested". Kept on rotation.
+    var dialog by rememberSaveable { mutableStateOf<String?>(null) }
+    PlanDialog(
+        dialog = dialog,
+        routines = state.routines,
+        onDismiss = { dialog = null },
+        onStartFromScratch = { name -> dialog = null; onStartFromScratch(name) },
+        onAddRoutine = { name -> dialog = null; onAddRoutine(name) },
+        onRenameRoutine = { id, name -> dialog = null; onRenameRoutine(id, name) },
+        onDeleteRoutine = { id -> dialog = null; onDeleteRoutine(id) },
+        onUseSuggestedPlan = { dialog = null; onUseSuggestedPlan() },
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -112,7 +166,11 @@ fun PlanScreen(
                 )
                 if (!state.isLoading) {
                     Text(
-                        text = stringResource(R.string.plan_summary, stringResource(state.plan.type.labelRes()), state.trainingDays.size),
+                        text = stringResource(
+                            R.string.plan_summary,
+                            if (state.isCustom) stringResource(R.string.plan_my_plan) else stringResource(state.plan.type.labelRes()),
+                            state.trainingDays.size,
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -132,16 +190,35 @@ fun PlanScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Overline(stringResource(R.string.plan_training_days), modifier = Modifier.semantics { heading() })
-            Text(
-                text = stringResource(R.string.plan_training_days_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            DayPicker(selected = state.trainingDays, onToggle = onToggleDay)
-            if (state.customDays) {
-                TextButton(onClick = onResetDays, modifier = Modifier.testTag("plan_reset_days")) {
-                    Text(stringResource(R.string.plan_use_default_days))
+            if (state.isCustom) {
+                Overline(stringResource(R.string.plan_your_week), modifier = Modifier.semantics { heading() })
+                Text(
+                    text = stringResource(R.string.plan_your_week_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                VoltCard(contentPadding = 6.dp, modifier = Modifier.testTag("plan_schedule")) {
+                    DayOfWeek.entries.forEach { day ->
+                        ScheduleRow(
+                            day = day,
+                            routineId = state.schedule[day],
+                            routines = state.routines,
+                            onPick = { routineId -> onSetDayRoutine(day, routineId) },
+                        )
+                    }
+                }
+            } else {
+                Overline(stringResource(R.string.plan_training_days), modifier = Modifier.semantics { heading() })
+                Text(
+                    text = stringResource(R.string.plan_training_days_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DayPicker(selected = state.trainingDays, onToggle = onToggleDay)
+                if (state.customDays) {
+                    TextButton(onClick = onResetDays, modifier = Modifier.testTag("plan_reset_days")) {
+                        Text(stringResource(R.string.plan_use_default_days))
+                    }
                 }
             }
             if (state.saveFailed) {
@@ -175,10 +252,302 @@ fun PlanScreen(
                     .semantics { heading() },
             )
             state.routines.forEach { routine ->
-                RoutineCard(routine = routine, onOpen = { onOpenRoutine(routine.id) })
+                RoutineCard(
+                    routine = routine,
+                    onOpen = { onOpenRoutine(routine.id) },
+                    menu = if (state.isCustom) {
+                        {
+                            RoutineCardMenu(
+                                name = routine.name,
+                                routineId = routine.id,
+                                canDelete = state.canDeleteRoutine,
+                                onRename = { dialog = "rename:${routine.id}" },
+                                onDelete = { dialog = "delete:${routine.id}" },
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                )
+            }
+            if (state.isCustom) {
+                OutlinedButton(
+                    onClick = { dialog = "new" },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .testTag("plan_new_routine"),
+                ) {
+                    Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.plan_new_routine))
+                }
+                TextButton(
+                    onClick = { dialog = "suggested" },
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("plan_use_suggested"),
+                ) {
+                    Text(stringResource(R.string.plan_use_suggested))
+                }
+            } else {
+                MakeItYourOwnCard(
+                    onStartFromSuggested = onStartFromSuggested,
+                    onStartFromScratch = { dialog = "scratch" },
+                )
             }
         }
     }
+}
+
+/**
+ * On the user's own plan, one day of the week and its routine, or Rest. Tap to pick another
+ * routine or a day off from a menu.
+ */
+@Composable
+private fun ScheduleRow(day: DayOfWeek, routineId: String?, routines: List<WorkoutTemplate>, onPick: (String?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val locale = Locale.getDefault()
+    val routineName = routines.firstOrNull { it.id == routineId }?.name
+    val chooseLabel = stringResource(R.string.plan_choose_for_day, day.getDisplayName(TextStyle.FULL, locale))
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.small)
+                .clickable(onClickLabel = chooseLabel, role = Role.Button) { open = true }
+                .heightIn(min = 52.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .testTag("plan_schedule_${day.name.lowercase()}"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = day.getDisplayName(TextStyle.FULL, locale),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.width(104.dp),
+            )
+            Text(
+                text = routineName ?: stringResource(R.string.plan_rest),
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (routineName == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            routines.forEach { routine ->
+                DropdownMenuItem(
+                    text = { Text(routine.name) },
+                    onClick = { open = false; onPick(routine.id) },
+                    trailingIcon = if (routine.id == routineId) {
+                        { Icon(painterResource(R.drawable.ic_check), contentDescription = null) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.testTag("plan_pick_${routine.id}"),
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.plan_day_off)) },
+                onClick = { open = false; onPick(null) },
+                trailingIcon = if (routineName == null) {
+                    { Icon(painterResource(R.drawable.ic_check), contentDescription = null) }
+                } else {
+                    null
+                },
+                modifier = Modifier.testTag("plan_pick_rest"),
+            )
+        }
+    }
+}
+
+/** The way to make the suggested plan the user's own, from it or from nothing. */
+@Composable
+private fun MakeItYourOwnCard(onStartFromSuggested: () -> Unit, onStartFromScratch: () -> Unit) {
+    VoltCard(modifier = Modifier.padding(top = 8.dp).testTag("plan_make_own")) {
+        Overline(stringResource(R.string.plan_make_own_title), modifier = Modifier.semantics { heading() })
+        Text(
+            text = stringResource(R.string.plan_make_own_message),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(
+            onClick = onStartFromSuggested,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp)
+                .testTag("plan_start_from_suggested"),
+        ) {
+            Text(stringResource(R.string.plan_start_from_suggested))
+        }
+        OutlinedButton(
+            onClick = onStartFromScratch,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp)
+                .testTag("plan_start_from_scratch"),
+        ) {
+            Text(stringResource(R.string.plan_start_from_scratch))
+        }
+    }
+}
+
+/** Rename or delete one of the user's own routines. */
+@Composable
+private fun RoutineCardMenu(name: String, routineId: String, canDelete: Boolean, onRename: () -> Unit, onDelete: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.testTag("plan_routine_menu_$routineId")) {
+            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = stringResource(R.string.routine_more, name))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.plan_rename)) },
+                onClick = { open = false; onRename() },
+                modifier = Modifier.testTag("plan_rename_$routineId"),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.plan_delete)) },
+                onClick = { open = false; onDelete() },
+                enabled = canDelete,
+                modifier = Modifier.testTag("plan_delete_$routineId"),
+            )
+        }
+    }
+}
+
+/** The open dialog, if any: a routine name to type, or a delete to confirm. */
+@Composable
+private fun PlanDialog(
+    dialog: String?,
+    routines: List<WorkoutTemplate>,
+    onDismiss: () -> Unit,
+    onStartFromScratch: (String) -> Unit,
+    onAddRoutine: (String) -> Unit,
+    onRenameRoutine: (String, String) -> Unit,
+    onDeleteRoutine: (String) -> Unit,
+    onUseSuggestedPlan: () -> Unit,
+) {
+    when {
+        dialog == null -> Unit
+        dialog == "scratch" -> RoutineNameDialog(
+            title = stringResource(R.string.plan_first_routine_title),
+            initial = "",
+            confirmLabel = stringResource(R.string.plan_create),
+            onConfirm = onStartFromScratch,
+            onDismiss = onDismiss,
+        )
+        dialog == "new" -> RoutineNameDialog(
+            title = stringResource(R.string.plan_new_routine),
+            initial = "",
+            confirmLabel = stringResource(R.string.plan_create),
+            onConfirm = onAddRoutine,
+            onDismiss = onDismiss,
+        )
+        dialog.startsWith("rename:") -> {
+            val routine = routines.firstOrNull { it.id == dialog.removePrefix("rename:") } ?: return
+            RoutineNameDialog(
+                title = stringResource(R.string.plan_rename_title),
+                initial = routine.name,
+                confirmLabel = stringResource(R.string.plan_save),
+                onConfirm = { name -> onRenameRoutine(routine.id, name) },
+                onDismiss = onDismiss,
+            )
+        }
+        dialog.startsWith("delete:") -> {
+            val routine = routines.firstOrNull { it.id == dialog.removePrefix("delete:") } ?: return
+            ConfirmDialog(
+                title = stringResource(R.string.plan_delete_title, routine.name),
+                message = stringResource(R.string.plan_delete_message),
+                confirmLabel = stringResource(R.string.plan_delete),
+                confirmTag = "plan_delete_confirm",
+                onConfirm = { onDeleteRoutine(routine.id) },
+                onDismiss = onDismiss,
+            )
+        }
+        dialog == "suggested" -> ConfirmDialog(
+            title = stringResource(R.string.plan_use_suggested_title),
+            message = stringResource(R.string.plan_use_suggested_message),
+            confirmLabel = stringResource(R.string.plan_use_suggested_confirm),
+            confirmTag = "plan_use_suggested_confirm",
+            onConfirm = onUseSuggestedPlan,
+            onDismiss = onDismiss,
+        )
+    }
+}
+
+/** Asks for a routine name. Save stays off until there is one. */
+@Composable
+private fun RoutineNameDialog(
+    title: String,
+    initial: String,
+    confirmLabel: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    val clean = RoutineName.clean(text)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { if (it.length <= RoutineName.MAX_LENGTH) text = it },
+                label = { Text(stringResource(R.string.plan_routine_name)) },
+                placeholder = { Text(stringResource(R.string.plan_routine_name_hint)) },
+                singleLine = true,
+                supportingText = { Text(stringResource(R.string.plan_routine_name_count, text.length, RoutineName.MAX_LENGTH)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { clean?.let(onConfirm) }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("plan_name_input"),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { clean?.let(onConfirm) }, enabled = clean != null, modifier = Modifier.testTag("plan_name_save")) {
+                Text(confirmLabel)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.plan_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun ConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    confirmTag: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.testTag(confirmTag),
+            ) {
+                Text(confirmLabel)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.plan_cancel)) }
+        },
+    )
 }
 
 /**
@@ -263,9 +632,9 @@ private fun statusLabel(status: PlanDayStatus): String? = when (status) {
     PlanDayStatus.PLANNED, PlanDayStatus.REST -> null
 }
 
-/** A routine: name, how many exercises, whether it was edited. Tap to open it. */
+/** A routine: name, how many exercises, whether it was edited. Tap to open it. [menu] goes at the end. */
 @Composable
-private fun RoutineCard(routine: WorkoutTemplate, onOpen: () -> Unit) {
+private fun RoutineCard(routine: WorkoutTemplate, onOpen: () -> Unit, menu: (@Composable () -> Unit)? = null) {
     val count = stringResource(R.string.workouts_exercise_count, routine.exercises.size)
     val subtitle = if (routine.isEdited) stringResource(R.string.plan_routine_summary, count, stringResource(R.string.plan_edited)) else count
     VoltCard(
@@ -289,12 +658,16 @@ private fun RoutineCard(routine: WorkoutTemplate, onOpen: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(
-                painterResource(R.drawable.ic_chevron_right),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
+            if (menu != null) {
+                menu()
+            } else {
+                Icon(
+                    painterResource(R.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
     }
 }

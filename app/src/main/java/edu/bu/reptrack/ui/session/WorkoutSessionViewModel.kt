@@ -15,8 +15,9 @@ import edu.bu.reptrack.domain.workout.LoggedSet
 import edu.bu.reptrack.domain.workout.Rest
 import edu.bu.reptrack.domain.workout.SetInput
 import edu.bu.reptrack.domain.workout.StarterRoutines
-import edu.bu.reptrack.domain.workout.withEdits
+import edu.bu.reptrack.domain.workout.WorkoutTemplate
 import edu.bu.reptrack.domain.workout.exercisesToShow
+import edu.bu.reptrack.domain.workout.findRoutine
 import edu.bu.reptrack.domain.workout.totalVolumeKg
 import edu.bu.reptrack.ui.navigation.Routes
 import kotlin.coroutines.cancellation.CancellationException
@@ -97,14 +98,17 @@ class WorkoutSessionViewModel(
 ) : ViewModel() {
 
     private val routineId: String = savedState.get<String>(Routes.ARG_ROUTINE_ID).orEmpty()
-    private val routine = StarterRoutines.find(routineId)
-    private val routineName: String = routine?.name.orEmpty()
+    private val builtIn = StarterRoutines.find(routineId)
 
-    /** The routine's exercises, with the user's changes from the routine screen. */
-    private val routineExercises: StateFlow<List<String>> = plan.observeRoutineEdits()
-        .map { edits -> routine?.withEdits(edits)?.exercises.orEmpty() }
-        .catch { emit(routine?.exercises.orEmpty()) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, routine?.exercises.orEmpty())
+    /** The routine with the user's changes from the routine screen, or one of the user's own. */
+    private val routine: StateFlow<WorkoutTemplate?> = combine(
+        plan.observeRoutineEdits(),
+        plan.observeCustomPlan(),
+    ) { edits, custom -> findRoutine(routineId, edits, custom) }
+        .catch { emit(builtIn) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, builtIn)
+
+    private val routineName: String get() = routine.value?.name.orEmpty()
 
     private val sessionId: StateFlow<Long?> = savedState.getStateFlow(KEY_SESSION_ID, null)
 
@@ -139,12 +143,12 @@ class WorkoutSessionViewModel(
     private val restTotalMs = savedState.getStateFlow(KEY_REST_TOTAL_MS, Rest.DEFAULT_MS)
     private val rest = combine(restEndsAt, restTotalMs) { endsAt, total -> endsAt?.let { RestTimerUi(it, total) } }
 
-    val uiState: StateFlow<WorkoutSessionUiState> = combine(sets, local, rest, routineExercises) { sets, local, rest, exercises ->
-        buildState(sets, local, exercises).copy(rest = rest)
+    val uiState: StateFlow<WorkoutSessionUiState> = combine(sets, local, rest, routine) { sets, local, rest, routine ->
+        buildState(sets, local, routine).copy(rest = rest)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = buildState(emptyList(), LocalState(), routineExercises.value),
+        initialValue = buildState(emptyList(), LocalState(), routine.value),
     )
 
     // ---- Typing in an exercise card ----
@@ -312,8 +316,8 @@ class WorkoutSessionViewModel(
         local.update { state -> state.copy(editing = state.editing?.let(change)) }
     }
 
-    private fun buildState(sets: List<LoggedSet>, local: LocalState, routineExercises: List<String>): WorkoutSessionUiState {
-        val names = exercisesToShow(routineExercises, sets)
+    private fun buildState(sets: List<LoggedSet>, local: LocalState, routine: WorkoutTemplate?): WorkoutSessionUiState {
+        val names = exercisesToShow(routine?.exercises.orEmpty(), sets)
         val exercises = names.map { name ->
             val draft = local.drafts[name] ?: Draft()
             ExerciseUi(
@@ -326,7 +330,7 @@ class WorkoutSessionViewModel(
             )
         }
         return WorkoutSessionUiState(
-            routineName = routineName,
+            routineName = routine?.name.orEmpty(),
             exercises = exercises,
             setCount = sets.size,
             totalVolumeKg = totalVolumeKg(sets),

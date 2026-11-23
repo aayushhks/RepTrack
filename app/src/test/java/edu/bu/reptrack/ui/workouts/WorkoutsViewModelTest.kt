@@ -234,4 +234,21 @@ class WorkoutsViewModelTest {
         assertEquals(listOf("Incline bench press", "Pull-up"), upper.exercises)
         assertTrue(upper.isEdited)
     }
+
+    @Test
+    fun ownPlan_replacesTheSuggestedOne_andUpNextIsTodaysRoutine() = runTest {
+        repository.saveProfile(muscleAtGym)
+        plan.ownRoutines.value = listOf("custom_1" to "Push", "custom_2" to "Legs")
+        plan.edits.value = mapOf("custom_1" to listOf("Bench press"), "custom_2" to listOf("Squat"))
+        // Today is Wednesday.
+        plan.schedule.value = mapOf(DayOfWeek.MONDAY to "custom_1", DayOfWeek.WEDNESDAY to "custom_2")
+        val viewModel = newViewModel()
+        startCollecting(viewModel)
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isCustomPlan)
+        assertEquals(listOf("Push", "Legs"), state.routines.map { it.name })
+        assertEquals("Legs", state.nextRoutine?.name)
+        assertEquals(2, state.trainingDays.size)
+    }
 }

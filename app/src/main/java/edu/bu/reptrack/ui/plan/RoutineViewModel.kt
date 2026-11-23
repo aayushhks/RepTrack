@@ -13,8 +13,8 @@ import edu.bu.reptrack.data.plan.PlanRepository
 import edu.bu.reptrack.domain.exercise.CatalogMatch
 import edu.bu.reptrack.domain.exercise.Exercise
 import edu.bu.reptrack.domain.workout.RoutineEdits
-import edu.bu.reptrack.domain.workout.StarterRoutines
-import edu.bu.reptrack.domain.workout.withEdits
+import edu.bu.reptrack.domain.workout.CustomPlan
+import edu.bu.reptrack.domain.workout.findRoutine
 import edu.bu.reptrack.ui.navigation.Routes
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +35,7 @@ data class RoutineExerciseUi(
 /** Everything the routine screen needs to draw itself. */
 data class RoutineUiState(
     val isLoading: Boolean = true,
-    /** No built-in routine has this id. */
+    /** No routine has this id, built-in or the user's own. */
     val notFound: Boolean = false,
     val routineId: String = "",
     val name: String = "",
@@ -49,6 +49,9 @@ data class RoutineUiState(
 ) {
     /** A routine keeps at least one exercise. */
     val canRemove: Boolean get() = exercises.size > 1
+
+    /** A new routine of the user's own has no exercises yet, so there is nothing to start. */
+    val canStart: Boolean get() = exercises.isNotEmpty()
 }
 
 /**
@@ -63,17 +66,17 @@ class RoutineViewModel(
 ) : ViewModel() {
 
     val routineId: String = savedState.get<String>(Routes.ARG_ROUTINE_ID).orEmpty()
-    private val builtIn = StarterRoutines.find(routineId)
 
     private val saveFailed = MutableStateFlow(false)
 
     val uiState: StateFlow<RoutineUiState> = combine(
         planRepository.observeRoutineEdits().catch { emit(emptyMap()) },
+        planRepository.observeCustomPlan().catch { emit(CustomPlan()) },
         // Without the catalog the routine still shows, just without muscles and pages.
         catalog.observeExercises().catch { emit(emptyList()) },
         saveFailed,
-    ) { edits, exercises, failed ->
-        val routine = builtIn?.withEdits(edits) ?: return@combine RoutineUiState(isLoading = false, notFound = true)
+    ) { edits, custom, exercises, failed ->
+        val routine = findRoutine(routineId, edits, custom) ?: return@combine RoutineUiState(isLoading = false, notFound = true)
         RoutineUiState(
             isLoading = false,
             routineId = routine.id,
