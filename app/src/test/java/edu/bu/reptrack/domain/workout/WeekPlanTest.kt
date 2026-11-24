@@ -104,7 +104,7 @@ class WeekPlanTest {
         )
 
         assertEquals(PlanDayStatus.MISSED, week[0].status)
-        assertNull(week[0].routineName)
+        assertEquals("Push", week[0].routineName)
         assertEquals(PlanDayStatus.RAN, week[1].status)
         assertEquals(PlanDayStatus.TODAY, week[2].status)
         assertEquals("Legs", week[2].routineName)
