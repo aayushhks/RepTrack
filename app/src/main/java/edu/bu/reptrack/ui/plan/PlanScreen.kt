@@ -27,6 +27,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -197,13 +198,15 @@ fun PlanScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // One list: this week's dates and how each day went, and what each day is set to.
                 VoltCard(contentPadding = 6.dp, modifier = Modifier.testTag("plan_schedule")) {
-                    DayOfWeek.entries.forEach { day ->
-                        ScheduleRow(
+                    state.week.forEach { day ->
+                        OwnWeekDayRow(
                             day = day,
-                            routineId = state.schedule[day],
+                            routineId = state.schedule[day.date.dayOfWeek],
                             routines = state.routines,
-                            onPick = { routineId -> onSetDayRoutine(day, routineId) },
+                            onOpenRoutine = onOpenRoutine,
+                            onPick = { routineId -> onSetDayRoutine(day.date.dayOfWeek, routineId) },
                         )
                     }
                 }
@@ -232,16 +235,22 @@ fun PlanScreen(
                 )
             }
 
-            Overline(
-                stringResource(R.string.plan_this_week),
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .semantics { heading() },
-            )
-            VoltCard(contentPadding = 6.dp, modifier = Modifier.testTag("plan_week")) {
-                state.week.forEach { day ->
-                    val routineId = day.routineId?.takeIf { id -> state.routines.any { it.id == id } }
-                    WeekDayRow(day = day, onOpen = routineId?.let { id -> { onOpenRoutine(id) } })
+            if (!state.isCustom) {
+                Overline(
+                    stringResource(R.string.plan_this_week),
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .semantics { heading() },
+                )
+                VoltCard(contentPadding = 6.dp, modifier = Modifier.testTag("plan_week")) {
+                    state.week.forEach { day ->
+                        val routineId = day.routineId?.takeIf { id -> state.routines.any { it.id == id } }
+                        WeekDayRow(
+                            day = day,
+                            onClick = routineId?.let { id -> { onOpenRoutine(id) } },
+                            clickLabel = stringResource(R.string.workouts_open_routine),
+                        )
+                    }
                 }
             }
 
@@ -301,63 +310,55 @@ fun PlanScreen(
 }
 
 /**
- * On the user's own plan, one day of the week and its routine, or Rest. Tap to pick another
- * routine or a day off from a menu.
+ * On the user's own plan, one day of this week: its date, its routine and how it went. Tap for a
+ * menu to open the routine, give the day another routine, or make it a rest day. The change
+ * holds for that day every week.
  */
 @Composable
-private fun ScheduleRow(day: DayOfWeek, routineId: String?, routines: List<WorkoutTemplate>, onPick: (String?) -> Unit) {
+private fun OwnWeekDayRow(
+    day: PlanDay,
+    routineId: String?,
+    routines: List<WorkoutTemplate>,
+    onOpenRoutine: (String) -> Unit,
+    onPick: (String?) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
-    val locale = Locale.getDefault()
-    val routineName = routines.firstOrNull { it.id == routineId }?.name
-    val chooseLabel = stringResource(R.string.plan_choose_for_day, day.getDisplayName(TextStyle.FULL, locale))
+    val dayOfWeek = day.date.dayOfWeek
+    val routine = routines.firstOrNull { it.id == routineId }
     Box {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.small)
-                .clickable(onClickLabel = chooseLabel, role = Role.Button) { open = true }
-                .heightIn(min = 52.dp)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .testTag("plan_schedule_${day.name.lowercase()}"),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = day.getDisplayName(TextStyle.FULL, locale),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.width(104.dp),
-            )
-            Text(
-                text = routineName ?: stringResource(R.string.plan_rest),
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (routineName == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                painterResource(R.drawable.ic_chevron_right),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        WeekDayRow(
+            day = day,
+            onClick = { open = true },
+            clickLabel = stringResource(R.string.plan_choose_for_day, dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())),
+            tag = "plan_schedule_${dayOfWeek.name.lowercase()}",
+            showChevron = true,
+        )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            routines.forEach { routine ->
+            if (routine != null) {
                 DropdownMenuItem(
-                    text = { Text(routine.name) },
-                    onClick = { open = false; onPick(routine.id) },
-                    trailingIcon = if (routine.id == routineId) {
-                        { Icon(painterResource(R.drawable.ic_check), contentDescription = null) }
+                    text = { Text(stringResource(R.string.plan_open_routine, routine.name)) },
+                    onClick = { open = false; onOpenRoutine(routine.id) },
+                    modifier = Modifier.testTag("plan_open_${dayOfWeek.name.lowercase()}"),
+                )
+                HorizontalDivider()
+            }
+            routines.forEach { choice ->
+                DropdownMenuItem(
+                    text = { Text(choice.name) },
+                    onClick = { open = false; onPick(choice.id) },
+                    trailingIcon = if (choice.id == routineId) {
+                        { Icon(painterResource(R.drawable.ic_check), contentDescription = stringResource(R.string.plan_current)) }
                     } else {
                         null
                     },
-                    modifier = Modifier.testTag("plan_pick_${routine.id}"),
+                    modifier = Modifier.testTag("plan_pick_${choice.id}"),
                 )
             }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.plan_day_off)) },
                 onClick = { open = false; onPick(null) },
-                trailingIcon = if (routineName == null) {
-                    { Icon(painterResource(R.drawable.ic_check), contentDescription = null) }
+                trailingIcon = if (routine == null) {
+                    { Icon(painterResource(R.drawable.ic_check), contentDescription = stringResource(R.string.plan_current)) }
                 } else {
                     null
                 },
@@ -579,13 +580,18 @@ private fun DayPicker(selected: Set<DayOfWeek>, onToggle: (DayOfWeek) -> Unit) {
 
 /** "Thu, Nov 26 · Upper body · Today". Tap to open the routine. */
 @Composable
-private fun WeekDayRow(day: PlanDay, onOpen: (() -> Unit)?) {
+private fun WeekDayRow(
+    day: PlanDay,
+    onClick: (() -> Unit)?,
+    clickLabel: String,
+    tag: String = "plan_day_row_${day.date.dayOfWeek.name.lowercase()}",
+    showChevron: Boolean = false,
+) {
     val locale = Locale.getDefault()
-    val openLabel = stringResource(R.string.workouts_open_routine)
     val background = if (day.isToday) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
     val content = if (day.isToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
     val muted = if (day.isToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-    val click = if (onOpen == null) Modifier else Modifier.clickable(onClickLabel = openLabel, role = Role.Button, onClick = onOpen)
+    val click = if (onClick == null) Modifier else Modifier.clickable(onClickLabel = clickLabel, role = Role.Button, onClick = onClick)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -595,7 +601,7 @@ private fun WeekDayRow(day: PlanDay, onOpen: (() -> Unit)?) {
             .semantics(mergeDescendants = true) {}
             .heightIn(min = 52.dp)
             .padding(horizontal = 12.dp, vertical = 8.dp)
-            .testTag("plan_day_row_${day.date.dayOfWeek.name.lowercase()}"),
+            .testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -619,6 +625,14 @@ private fun WeekDayRow(day: PlanDay, onOpen: (() -> Unit)?) {
         )
         statusLabel(day.status)?.let { label ->
             Text(text = label, style = MaterialTheme.typography.labelMedium, color = muted)
+        }
+        if (showChevron) {
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = muted,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }

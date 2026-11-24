@@ -118,7 +118,8 @@ object WeekPlan {
             when {
                 workout != null -> PlanDay(date, isToday, routine != null, workout.routineId, workout.name, PlanDayStatus.DONE)
                 routine == null -> PlanDay(date, isToday, false, null, null, dayOff)
-                date.isBefore(today) -> PlanDay(date, isToday, true, null, null, PlanDayStatus.MISSED)
+                // A missed day still says which routine it was, since the user picked it for that day.
+                date.isBefore(today) -> PlanDay(date, isToday, true, routine.id, routine.name, PlanDayStatus.MISSED)
                 else -> PlanDay(date, isToday, true, routine.id, routine.name, if (isToday) PlanDayStatus.TODAY else PlanDayStatus.PLANNED)
             }
         }

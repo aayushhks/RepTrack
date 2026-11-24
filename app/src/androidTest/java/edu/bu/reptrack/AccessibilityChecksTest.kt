@@ -39,6 +39,7 @@ import edu.bu.reptrack.domain.workout.PlanDayStatus
 import edu.bu.reptrack.domain.workout.SessionSummary
 import edu.bu.reptrack.domain.workout.StarterRoutines
 import edu.bu.reptrack.domain.workout.WeekActivity
+import edu.bu.reptrack.domain.workout.WeekPlan
 import edu.bu.reptrack.domain.workout.WorkoutSession
 import edu.bu.reptrack.domain.workout.WorkoutTemplate
 import edu.bu.reptrack.ui.auth.SignInScreen
@@ -482,15 +483,23 @@ class AccessibilityChecksTest {
     @Test
     fun exerciseDetail_withHowToPhotos() = check { ExerciseDetail(ExerciseDetailUiState(isLoading = false, exercise = squat, demo = squatDemo)) }
 
+    private val pushDay = WorkoutTemplate("custom_1", "Push day", listOf("Bench press", "Dips"))
+    private val legDay = WorkoutTemplate("custom_2", "Leg day", listOf("Squat"))
+
+    /** Push day on Monday, done; Leg day on Thursday; today is Wednesday. */
     @Composable
     private fun OwnPlan() = PlanScreen(
         state = planState().copy(
             isCustom = true,
-            routines = listOf(
-                WorkoutTemplate("custom_1", "Push day", listOf("Bench press", "Dips")),
-                WorkoutTemplate("custom_2", "Leg day", listOf("Squat")),
-            ),
+            routines = listOf(pushDay, legDay),
             schedule = mapOf(DayOfWeek.MONDAY to "custom_1", DayOfWeek.THURSDAY to "custom_2"),
+            trainingDays = setOf(DayOfWeek.MONDAY, DayOfWeek.THURSDAY),
+            week = WeekPlan.buildScheduled(
+                today = LocalDate.parse("2026-11-25"),
+                schedule = mapOf(DayOfWeek.MONDAY to pushDay, DayOfWeek.THURSDAY to legDay),
+                done = listOf(WeekPlan.Done(LocalDate.parse("2026-11-23"), "custom_1", "Push day")),
+                runDates = setOf(LocalDate.parse("2026-11-24")),
+            ),
         ),
         onBack = {},
         onToggleDay = {},

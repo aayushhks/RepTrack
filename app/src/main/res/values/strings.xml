@@ -95,7 +95,9 @@
     <!-- The user's own plan -->
     <string name="plan_my_plan">My plan</string>
     <string name="plan_your_week">Your week</string>
-    <string name="plan_your_week_message">Tap a day to pick its routine, or make it a rest day. It repeats every week.</string>
+    <string name="plan_your_week_message">Tap a day to open its routine, pick another one or make it a rest day. Your choice repeats every week.</string>
+    <string name="plan_open_routine">Open %1$s</string>
+    <string name="plan_current">Current</string>
     <string name="plan_choose_for_day">choose the routine for %1$s</string>
     <string name="plan_day_off">Rest day</string>
     <string name="plan_new_routine">New routine</string>

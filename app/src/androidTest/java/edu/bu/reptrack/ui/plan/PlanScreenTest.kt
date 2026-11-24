@@ -20,6 +20,7 @@ import edu.bu.reptrack.domain.profile.TrainingPlace
 import edu.bu.reptrack.domain.workout.PlanDay
 import edu.bu.reptrack.domain.workout.PlanDayStatus
 import edu.bu.reptrack.domain.workout.StarterRoutines
+import edu.bu.reptrack.domain.workout.WeekPlan
 import edu.bu.reptrack.domain.workout.WorkoutTemplate
 import edu.bu.reptrack.ui.theme.RepTrackTheme
 import java.time.DayOfWeek
@@ -145,11 +146,17 @@ class PlanScreenTest {
     private val push = WorkoutTemplate("custom_1", "Push", listOf("Bench press"))
     private val legs = WorkoutTemplate("custom_2", "Legs", listOf("Squat"))
 
-    /** Push on Monday and Friday, Legs on Wednesday. */
+    /** Push on Monday and Friday, Legs on Wednesday. Monday is done, Wednesday is today. */
     private fun ownState() = state().copy(
         isCustom = true,
         routines = listOf(push, legs),
         schedule = mapOf(DayOfWeek.MONDAY to "custom_1", DayOfWeek.WEDNESDAY to "custom_2", DayOfWeek.FRIDAY to "custom_1"),
+        week = WeekPlan.buildScheduled(
+            today = monday.plusDays(2),
+            schedule = mapOf(DayOfWeek.MONDAY to push, DayOfWeek.WEDNESDAY to legs, DayOfWeek.FRIDAY to push),
+            done = listOf(WeekPlan.Done(monday, "custom_1", "Push")),
+            runDates = emptySet(),
+        ),
     )
 
     private fun showAll(state: PlanUiState) {
@@ -201,6 +208,9 @@ class PlanScreenTest {
 
         composeRule.onNodeWithText("My plan, 3 days a week").assertIsDisplayed()
         composeRule.onNodeWithTag("plan_day_monday").assertDoesNotExist()
+        // One list for the week, not a second "This week" list.
+        composeRule.onNodeWithTag("plan_week").assertDoesNotExist()
+        composeRule.onNodeWithTag("plan_schedule_monday").assertTextContains("Done", substring = true)
         composeRule.onNodeWithTag("plan_make_own").assertDoesNotExist()
         composeRule.onNodeWithTag("plan_schedule_wednesday").assertTextContains("Legs", substring = true)
         composeRule.onNodeWithTag("plan_schedule_tuesday").assertTextContains("Rest", substring = true)
@@ -217,6 +227,27 @@ class PlanScreenTest {
         composeRule.onNodeWithTag("plan_schedule_monday").performScrollTo().performClick()
         composeRule.onNodeWithTag("plan_pick_rest").performClick()
         assertEquals(DayOfWeek.MONDAY to null, dayPicked)
+    }
+
+    @Test
+    fun ownPlan_aDayOpensItsRoutineFromTheMenu() {
+        showAll(ownState())
+
+        composeRule.onNodeWithTag("plan_schedule_wednesday").performScrollTo().performClick()
+        composeRule.onNodeWithTag("plan_open_wednesday").performClick()
+
+        assertEquals("custom_2", opened)
+        assertNull(dayPicked)
+    }
+
+    @Test
+    fun ownPlan_aRestDayHasNoRoutineToOpen() {
+        showAll(ownState())
+
+        composeRule.onNodeWithTag("plan_schedule_tuesday").performScrollTo().performClick()
+
+        composeRule.onNodeWithTag("plan_open_tuesday").assertDoesNotExist()
+        composeRule.onNodeWithTag("plan_pick_rest").assertExists()
     }
 
     @Test
